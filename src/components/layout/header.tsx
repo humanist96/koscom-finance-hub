@@ -2,7 +2,7 @@
 
 import { useState } from 'react';
 import Link from 'next/link';
-import { Search, Menu, Building2, X, Settings, User, LogOut } from 'lucide-react';
+import { Search, Menu, Building2, X, Settings, User, LogOut, FileText } from 'lucide-react';
 import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
 import { Sheet, SheetContent, SheetTrigger } from '@/components/ui/sheet';
@@ -64,6 +64,13 @@ export function Header() {
             className="text-sm font-medium transition-colors hover:text-blue-600"
           >
             증권사
+          </Link>
+          <Link
+            href="/dashboard/reports"
+            className="flex items-center gap-1 text-sm font-medium text-blue-600 transition-colors hover:text-blue-700"
+          >
+            <FileText className="h-4 w-4" />
+            주간리포트
           </Link>
         </nav>
 
@@ -266,6 +273,14 @@ export function Header() {
                   onClick={() => setMobileMenuOpen(false)}
                 >
                   증권사
+                </Link>
+                <Link
+                  href="/dashboard/reports"
+                  className="flex items-center gap-2 text-lg font-medium text-blue-600"
+                  onClick={() => setMobileMenuOpen(false)}
+                >
+                  <FileText className="h-5 w-5" />
+                  주간리포트
                 </Link>
                 {isLoggedIn ? (
                   <>

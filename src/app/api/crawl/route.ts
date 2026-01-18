@@ -1,5 +1,6 @@
 import { NextResponse } from 'next/server';
 import { getLastCrawlStatus, runServerlessCrawler } from '@/lib/serverless-crawler';
+import { generateWeeklyReport } from '@/lib/weekly-report-service';
 
 // Vercel Cron이 호출할 수 있도록 설정
 export const maxDuration = 300; // 5분 타임아웃
@@ -44,9 +45,18 @@ export async function POST(request: Request) {
     // 동기적으로 크롤링 실행 (Vercel Cron은 응답을 기다림)
     const result = await runServerlessCrawler();
 
+    // 월요일(1)에는 주간 리포트도 생성
+    const today = new Date();
+    let reportResult = null;
+    if (today.getDay() === 1) { // Monday
+      console.log('Monday detected - generating weekly report...');
+      reportResult = await generateWeeklyReport();
+    }
+
     return NextResponse.json({
       message: '크롤링이 완료되었습니다.',
       ...result,
+      weeklyReport: reportResult,
     });
   } catch (error) {
     console.error('Failed to run crawler:', error);
