@@ -1,11 +1,17 @@
 import * as cheerio from 'cheerio';
 import { PrismaClient } from '@prisma/client';
+import OpenAI from 'openai';
 
 const prisma = new PrismaClient();
+
+const openai = new OpenAI({
+  apiKey: process.env.OPENAI_API_KEY,
+});
 
 interface NewsItem {
   title: string;
   content: string;
+  summary: string;
   sourceUrl: string;
   sourceName: string;
   publishedAt: Date;
@@ -56,6 +62,67 @@ async function fetchWithRetry(url: string, retries = 3): Promise<string> {
   throw new Error('Failed to fetch after retries');
 }
 
+// 네이버 뉴스 본문 추출
+async function fetchArticleContent(url: string): Promise<string> {
+  try {
+    const html = await fetchWithRetry(url);
+    const $ = cheerio.load(html);
+
+    // 네이버 뉴스 본문 선택자들
+    let content = '';
+
+    // 네이버 뉴스 본문
+    content = $('#dic_area').text() ||
+              $('#articleBodyContents').text() ||
+              $('.news_end').text() ||
+              $('article').text() ||
+              $('.article_body').text();
+
+    content = cleanText(content);
+
+    // 본문이 너무 짧으면 메타 설명 사용
+    if (content.length < 50) {
+      content = $('meta[property="og:description"]').attr('content') || '';
+      content = cleanText(content);
+    }
+
+    return content.substring(0, 2000); // 최대 2000자
+  } catch (error) {
+    console.error(`Error fetching article: ${url}`, error);
+    return '';
+  }
+}
+
+// OpenAI로 요약
+async function summarizeWithOpenAI(title: string, content: string): Promise<string> {
+  if (!process.env.OPENAI_API_KEY || !content || content.length < 50) {
+    return content.substring(0, 200) || title;
+  }
+
+  try {
+    const response = await openai.chat.completions.create({
+      model: 'gpt-4o-mini',
+      messages: [
+        {
+          role: 'system',
+          content: '당신은 금융 뉴스 요약 전문가입니다. 주어진 증권사 관련 뉴스를 2-3문장으로 핵심만 요약해주세요. 한국어로 작성하세요.'
+        },
+        {
+          role: 'user',
+          content: `제목: ${title}\n\n본문:\n${content}`
+        }
+      ],
+      max_tokens: 300,
+      temperature: 0.3,
+    });
+
+    return response.choices[0]?.message?.content || content.substring(0, 200);
+  } catch (error) {
+    console.error('OpenAI summarization error:', error);
+    return content.substring(0, 200) || title;
+  }
+}
+
 async function crawlCompanyNews(companyName: string): Promise<NewsItem[]> {
   const searchUrl = `https://search.naver.com/search.naver?where=news&query=${encodeURIComponent(companyName)}&sort=1&sm=tab_smr&nso=so:dd,p:all`;
 
@@ -65,28 +132,41 @@ async function crawlCompanyNews(companyName: string): Promise<NewsItem[]> {
     const newsItems: NewsItem[] = [];
 
     // 네이버 뉴스 검색 결과 파싱
-    $('.news_area').each((_, element) => {
+    const elements = $('.news_area').toArray().slice(0, 3); // 회사당 최대 3개
+
+    for (const element of elements) {
       const $el = $(element);
       const titleEl = $el.find('.news_tit');
       const title = cleanText(titleEl.text());
       const sourceUrl = titleEl.attr('href') || '';
       const sourceName = cleanText($el.find('.info.press').text()) || '네이버뉴스';
-      const description = cleanText($el.find('.news_dsc').text());
 
-      // 회사명이 제목이나 내용에 포함된 경우만 수집
+      // 회사명이 제목에 포함된 경우만 수집
       const companyShortName = companyName.replace('증권', '');
-      if ((title.includes(companyName) || title.includes(companyShortName) ||
-           description.includes(companyName) || description.includes(companyShortName)) &&
+      if ((title.includes(companyName) || title.includes(companyShortName)) &&
           sourceUrl && title.length > 5) {
+
+        // 실제 기사 본문 가져오기
+        console.log(`  Fetching article: ${title.substring(0, 40)}...`);
+        const content = await fetchArticleContent(sourceUrl);
+
+        // OpenAI로 요약
+        console.log(`  Summarizing with OpenAI...`);
+        const summary = await summarizeWithOpenAI(title, content);
+
         newsItems.push({
           title,
-          content: description || title,
+          content: content || title,
+          summary,
           sourceUrl,
           sourceName,
           publishedAt: new Date(),
         });
+
+        // Rate limiting
+        await new Promise(r => setTimeout(r, 500));
       }
-    });
+    }
 
     // 대체 파싱 - JSON 데이터에서 추출
     if (newsItems.length === 0) {
@@ -105,18 +185,24 @@ async function crawlCompanyNews(companyName: string): Promise<NewsItem[]> {
       }
 
       const uniqueUrls = [...new Set(urlMatches.map(m => m[0]))];
-      for (let i = 0; i < Math.min(titles.length, uniqueUrls.length, 5); i++) {
+      for (let i = 0; i < Math.min(titles.length, uniqueUrls.length, 2); i++) {
+        const content = await fetchArticleContent(uniqueUrls[i]);
+        const summary = await summarizeWithOpenAI(titles[i], content);
+
         newsItems.push({
           title: titles[i],
-          content: titles[i],
+          content: content || titles[i],
+          summary,
           sourceUrl: uniqueUrls[i],
           sourceName: '네이버뉴스',
           publishedAt: new Date(),
         });
+
+        await new Promise(r => setTimeout(r, 500));
       }
     }
 
-    return newsItems.slice(0, 5);
+    return newsItems.slice(0, 3);
   } catch (error) {
     console.error(`Error crawling ${companyName}:`, error);
     return [];
@@ -135,7 +221,7 @@ async function saveNewsItem(companyId: string, news: NewsItem): Promise<boolean>
         companyId,
         title: news.title,
         content: news.content,
-        summary: news.content.substring(0, 200),
+        summary: news.summary,
         sourceUrl: news.sourceUrl,
         sourceName: news.sourceName,
         category: classifyCategory(news.title),
@@ -179,21 +265,22 @@ export async function runServerlessCrawler(): Promise<CrawlResult> {
     });
 
     console.log(`Starting crawl for ${companies.length} companies...`);
+    console.log(`OpenAI API Key: ${process.env.OPENAI_API_KEY ? 'configured' : 'NOT configured'}`);
 
     for (const company of companies) {
-      console.log(`Crawling: ${company.name}`);
+      console.log(`\nCrawling: ${company.name}`);
       const newsList = await crawlCompanyNews(company.name);
       totalFound += newsList.length;
 
       for (const news of newsList) {
         if (await saveNewsItem(company.id, news)) {
           totalSaved++;
-          console.log(`  Saved: ${news.title.substring(0, 50)}...`);
+          console.log(`  ✅ Saved: ${news.title.substring(0, 40)}...`);
         }
       }
 
-      // Rate limiting
-      await new Promise(r => setTimeout(r, 500));
+      // Rate limiting between companies
+      await new Promise(r => setTimeout(r, 300));
     }
 
     const completedAt = new Date();
@@ -207,7 +294,7 @@ export async function runServerlessCrawler(): Promise<CrawlResult> {
       },
     });
 
-    console.log(`Crawl completed: Found ${totalFound}, Saved ${totalSaved}`);
+    console.log(`\nCrawl completed: Found ${totalFound}, Saved ${totalSaved}`);
 
     return {
       success: true,
