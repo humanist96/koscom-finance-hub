@@ -2,8 +2,9 @@ import { PrismaClient } from '@prisma/client';
 
 const prisma = new PrismaClient();
 
-// PowerBase 회원 증권사 목록
+// 국내 증권사 전체 목록 (대형 + 소형)
 const securitiesCompanies = [
+  // 대형 증권사
   { name: '삼성증권', code: 'SAMSUNG', websiteUrl: 'https://www.samsungpop.com', newsroomUrl: 'https://www.samsungpop.com/mbw/news/newsRoom.do' },
   { name: '미래에셋증권', code: 'MIRAE', websiteUrl: 'https://securities.miraeasset.com', newsroomUrl: 'https://securities.miraeasset.com/bbs/board/messageList.do?categoryId=1545' },
   { name: 'NH투자증권', code: 'NH', websiteUrl: 'https://www.nhqv.com', newsroomUrl: 'https://www.nhqv.com/company/news.do' },
@@ -29,6 +30,22 @@ const securitiesCompanies = [
   { name: '하이투자증권', code: 'HI', websiteUrl: 'https://www.hi-ib.com', newsroomUrl: 'https://www.hi-ib.com/company/news.do' },
   { name: '토스증권', code: 'TOSS', websiteUrl: 'https://tossinvest.com', newsroomUrl: 'https://toss.im/team/article' },
   { name: '카카오페이증권', code: 'KAKAOPAY', websiteUrl: 'https://paySec.kakaopay.com', newsroomUrl: 'https://www.kakaocorp.com/page/news/pressRelease' },
+  // 소형 증권사
+  { name: 'BNK투자증권', code: 'BNK', websiteUrl: 'https://www.bnkfn.co.kr', newsroomUrl: 'https://www.bnkfn.co.kr/company/news' },
+  { name: 'DS투자증권', code: 'DS', websiteUrl: 'https://www.dssec.co.kr', newsroomUrl: 'https://www.dssec.co.kr' },
+  { name: 'iM증권', code: 'IM', websiteUrl: 'https://www.imsec.co.kr', newsroomUrl: 'https://www.imsec.co.kr' },
+  { name: 'KR투자증권', code: 'KR', websiteUrl: 'https://www.krsec.co.kr', newsroomUrl: 'https://www.krsec.co.kr' },
+  { name: 'LS증권', code: 'LS', websiteUrl: 'https://www.ls-sec.co.kr', newsroomUrl: 'https://www.ls-sec.co.kr' },
+  { name: '다올투자증권', code: 'DAOL', websiteUrl: 'https://www.daolsecurities.com', newsroomUrl: 'https://www.daolsecurities.com' },
+  { name: '리딩투자증권', code: 'LEADING', websiteUrl: 'https://www.leading.co.kr', newsroomUrl: 'https://www.leading.co.kr' },
+  { name: '상상인증권', code: 'SANGSANGIN', websiteUrl: 'https://www.sangsanginib.com', newsroomUrl: 'https://www.sangsanginib.com' },
+  { name: '유화증권', code: 'YUHWA', websiteUrl: 'https://www.yhs.co.kr', newsroomUrl: 'https://www.yhs.co.kr' },
+  { name: '한양증권', code: 'HANYANG', websiteUrl: 'https://www.hygood.co.kr', newsroomUrl: 'https://www.hygood.co.kr' },
+  { name: '코리아에셋투자증권', code: 'KOREAASSET', websiteUrl: 'https://www.koreaasset.co.kr', newsroomUrl: 'https://www.koreaasset.co.kr' },
+  { name: '흥국증권', code: 'HEUNGKUK', websiteUrl: 'https://www.heungkuksec.co.kr', newsroomUrl: 'https://www.heungkuksec.co.kr' },
+  { name: '나무증권', code: 'NAMU', websiteUrl: 'https://www.namuh.com', newsroomUrl: 'https://www.namuh.com' },
+  { name: '넥스트증권', code: 'NEXT', websiteUrl: 'https://www.nextsec.co.kr', newsroomUrl: 'https://www.nextsec.co.kr' },
+  { name: '한국포스증권', code: 'KOREAFOS', websiteUrl: 'https://www.fosstock.co.kr', newsroomUrl: 'https://www.fosstock.co.kr' },
 ];
 
 // 샘플 뉴스 데이터는 더 이상 사용하지 않음
