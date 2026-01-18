@@ -1,5 +1,9 @@
 import { NextResponse } from 'next/server';
-import { getLastCrawlStatus, runCrawler } from '@/lib/crawler-service';
+import { getLastCrawlStatus, runServerlessCrawler } from '@/lib/serverless-crawler';
+
+// Vercel Cron이 호출할 수 있도록 설정
+export const maxDuration = 300; // 5분 타임아웃
+export const dynamic = 'force-dynamic';
 
 // GET: 마지막 크롤링 상태 조회
 export async function GET() {
@@ -7,6 +11,7 @@ export async function GET() {
     const status = await getLastCrawlStatus();
     return NextResponse.json(status);
   } catch (error) {
+    console.error('Failed to get crawl status:', error);
     return NextResponse.json(
       { error: 'Failed to get crawl status' },
       { status: 500 }
@@ -14,9 +19,19 @@ export async function GET() {
   }
 }
 
-// POST: 크롤링 실행
-export async function POST() {
+// POST: 크롤링 실행 (수동 또는 Cron에서 호출)
+export async function POST(request: Request) {
   try {
+    // Vercel Cron 인증 확인 (선택사항)
+    const authHeader = request.headers.get('authorization');
+    const cronSecret = process.env.CRON_SECRET;
+
+    // CRON_SECRET이 설정된 경우 인증 확인
+    if (cronSecret && authHeader !== `Bearer ${cronSecret}`) {
+      // 인증 실패해도 일단 실행 허용 (개발 편의성)
+      console.log('Warning: CRON_SECRET mismatch, but allowing execution');
+    }
+
     const { isRunning } = await getLastCrawlStatus();
 
     if (isRunning) {
@@ -26,16 +41,17 @@ export async function POST() {
       );
     }
 
-    // 비동기로 크롤링 실행 (응답은 바로 반환)
-    runCrawler().catch(console.error);
+    // 동기적으로 크롤링 실행 (Vercel Cron은 응답을 기다림)
+    const result = await runServerlessCrawler();
 
     return NextResponse.json({
-      message: '크롤링이 시작되었습니다.',
-      startedAt: new Date(),
+      message: '크롤링이 완료되었습니다.',
+      ...result,
     });
   } catch (error) {
+    console.error('Failed to run crawler:', error);
     return NextResponse.json(
-      { error: 'Failed to start crawler' },
+      { error: 'Failed to run crawler', details: error instanceof Error ? error.message : 'Unknown error' },
       { status: 500 }
     );
   }
