@@ -1,0 +1,163 @@
+// Prisma Schema for Securities Intelligence Hub
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+  directUrl = env("DIRECT_URL")
+}
+
+// 증권사 정보
+model SecuritiesCompany {
+  id          String   @id @default(cuid())
+  name        String   @unique // 회사명 (예: 삼성증권)
+  code        String?  @unique // 회사 코드
+  logoUrl     String?  // 로고 이미지 URL
+  websiteUrl  String?  // 공식 홈페이지
+  newsroomUrl String?  // 뉴스룸/보도자료 페이지
+  isActive    Boolean  @default(true)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  news       News[]
+  personnel  PersonnelChange[]
+  favorites  UserFavorite[]
+
+  @@map("securities_companies")
+}
+
+// 뉴스/보도자료
+model News {
+  id          String   @id @default(cuid())
+  companyId   String
+  company     SecuritiesCompany @relation(fields: [companyId], references: [id])
+
+  title       String   // 뉴스 제목
+  content     String?  // 본문 내용
+  summary     String?  // AI 요약
+  sourceUrl   String   // 원문 링크
+  sourceName  String?  // 출처 (예: 네이버뉴스, 회사 홈페이지)
+  imageUrl    String?  // 대표 이미지
+
+  category    String   @default("GENERAL") // GENERAL, PERSONNEL, BUSINESS, PRODUCT, IR, EVENT
+  isPersonnel Boolean  @default(false) // 인사 관련 뉴스 여부
+
+  publishedAt DateTime // 기사 발행일
+  crawledAt   DateTime @default(now()) // 크롤링 시점
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  keywords    NewsKeyword[]
+
+  @@index([companyId])
+  @@index([publishedAt])
+  @@index([category])
+  @@index([isPersonnel])
+  @@map("news")
+}
+
+// 인사 정보 (별도 테이블로 분리)
+model PersonnelChange {
+  id          String   @id @default(cuid())
+  companyId   String
+  company     SecuritiesCompany @relation(fields: [companyId], references: [id])
+
+  personName  String   // 인물명
+  position    String?  // 직책
+  department  String?  // 부서
+  changeType  String   // APPOINTMENT, PROMOTION, TRANSFER, RESIGNATION, RETIREMENT
+  previousPosition String? // 이전 직책
+
+  sourceUrl   String?  // 출처 링크
+  effectiveDate DateTime? // 발령일
+  announcedAt DateTime // 발표일
+
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  @@index([companyId])
+  @@index([announcedAt])
+  @@index([changeType])
+  @@map("personnel_changes")
+}
+
+// 키워드 (뉴스 태깅용)
+model Keyword {
+  id        String   @id @default(cuid())
+  name      String   @unique
+  createdAt DateTime @default(now())
+
+  news      NewsKeyword[]
+  alerts    KeywordAlert[]
+
+  @@map("keywords")
+}
+
+// 뉴스-키워드 연결
+model NewsKeyword {
+  newsId    String
+  news      News    @relation(fields: [newsId], references: [id], onDelete: Cascade)
+  keywordId String
+  keyword   Keyword @relation(fields: [keywordId], references: [id], onDelete: Cascade)
+
+  @@id([newsId, keywordId])
+  @@map("news_keywords")
+}
+
+// 사용자 (코스콤 직원)
+model User {
+  id        String   @id @default(cuid())
+  email     String   @unique
+  name      String?
+  role      String   @default("USER") // USER, ADMIN
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  favorites UserFavorite[]
+  alerts    KeywordAlert[]
+
+  @@map("users")
+}
+
+// 관심 증권사 (즐겨찾기)
+model UserFavorite {
+  userId    String
+  user      User @relation(fields: [userId], references: [id], onDelete: Cascade)
+  companyId String
+  company   SecuritiesCompany @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  createdAt DateTime @default(now())
+
+  @@id([userId, companyId])
+  @@map("user_favorites")
+}
+
+// 키워드 알림 설정
+model KeywordAlert {
+  id        String   @id @default(cuid())
+  userId    String
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  keywordId String
+  keyword   Keyword  @relation(fields: [keywordId], references: [id], onDelete: Cascade)
+  isActive  Boolean  @default(true)
+  createdAt DateTime @default(now())
+
+  @@unique([userId, keywordId])
+  @@map("keyword_alerts")
+}
+
+// 크롤링 로그
+model CrawlLog {
+  id          String   @id @default(cuid())
+  targetUrl   String
+  status      String   // RUNNING, SUCCESS, FAILED
+  itemsFound  Int      @default(0)
+  errorMessage String?
+  startedAt   DateTime @default(now())
+  completedAt DateTime?
+
+  @@index([status])
+  @@index([startedAt])
+  @@map("crawl_logs")
+}
