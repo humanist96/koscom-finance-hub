@@ -62,16 +62,22 @@ async function fetchWithRetry(url: string, retries = 3): Promise<string> {
   throw new Error('Failed to fetch after retries');
 }
 
+// URL이 이미 DB에 있는지 확인 (중복 방지)
+async function isUrlAlreadyExists(sourceUrl: string): Promise<boolean> {
+  const exists = await prisma.news.findFirst({
+    where: { sourceUrl },
+    select: { id: true },
+  });
+  return !!exists;
+}
+
 // 네이버 뉴스 본문 추출
 async function fetchArticleContent(url: string): Promise<string> {
   try {
     const html = await fetchWithRetry(url);
     const $ = cheerio.load(html);
 
-    // 네이버 뉴스 본문 선택자들
     let content = '';
-
-    // 네이버 뉴스 본문
     content = $('#dic_area').text() ||
               $('#articleBodyContents').text() ||
               $('.news_end').text() ||
@@ -80,13 +86,12 @@ async function fetchArticleContent(url: string): Promise<string> {
 
     content = cleanText(content);
 
-    // 본문이 너무 짧으면 메타 설명 사용
     if (content.length < 50) {
       content = $('meta[property="og:description"]').attr('content') || '';
       content = cleanText(content);
     }
 
-    return content.substring(0, 2000); // 최대 2000자
+    return content.substring(0, 2000);
   } catch (error) {
     console.error(`Error fetching article: ${url}`, error);
     return '';
@@ -132,7 +137,7 @@ async function crawlCompanyNews(companyName: string): Promise<NewsItem[]> {
     const newsItems: NewsItem[] = [];
 
     // 네이버 뉴스 검색 결과 파싱
-    const elements = $('.news_area').toArray().slice(0, 3); // 회사당 최대 3개
+    const elements = $('.news_area').toArray().slice(0, 3);
 
     for (const element of elements) {
       const $el = $(element);
@@ -141,17 +146,22 @@ async function crawlCompanyNews(companyName: string): Promise<NewsItem[]> {
       const sourceUrl = titleEl.attr('href') || '';
       const sourceName = cleanText($el.find('.info.press').text()) || '네이버뉴스';
 
-      // 회사명이 제목에 포함된 경우만 수집
       const companyShortName = companyName.replace('증권', '');
       if ((title.includes(companyName) || title.includes(companyShortName)) &&
           sourceUrl && title.length > 5) {
 
-        // 실제 기사 본문 가져오기
-        console.log(`  Fetching article: ${title.substring(0, 40)}...`);
+        // ✅ 중복 체크 먼저! - URL이 이미 있으면 스킵
+        if (await isUrlAlreadyExists(sourceUrl)) {
+          console.log(`  ⏭️ Already exists: ${title.substring(0, 40)}...`);
+          continue;
+        }
+
+        // 새로운 뉴스만 본문 가져오기
+        console.log(`  📰 New article: ${title.substring(0, 40)}...`);
         const content = await fetchArticleContent(sourceUrl);
 
-        // OpenAI로 요약
-        console.log(`  Summarizing with OpenAI...`);
+        // 새로운 뉴스만 OpenAI로 요약
+        console.log(`  🤖 Summarizing with OpenAI...`);
         const summary = await summarizeWithOpenAI(title, content);
 
         newsItems.push({
@@ -163,7 +173,6 @@ async function crawlCompanyNews(companyName: string): Promise<NewsItem[]> {
           publishedAt: new Date(),
         });
 
-        // Rate limiting
         await new Promise(r => setTimeout(r, 500));
       }
     }
@@ -186,6 +195,13 @@ async function crawlCompanyNews(companyName: string): Promise<NewsItem[]> {
 
       const uniqueUrls = [...new Set(urlMatches.map(m => m[0]))];
       for (let i = 0; i < Math.min(titles.length, uniqueUrls.length, 2); i++) {
+        // ✅ 중복 체크 먼저!
+        if (await isUrlAlreadyExists(uniqueUrls[i])) {
+          console.log(`  ⏭️ Already exists: ${titles[i].substring(0, 40)}...`);
+          continue;
+        }
+
+        console.log(`  📰 New article: ${titles[i].substring(0, 40)}...`);
         const content = await fetchArticleContent(uniqueUrls[i]);
         const summary = await summarizeWithOpenAI(titles[i], content);
 
@@ -211,6 +227,7 @@ async function crawlCompanyNews(companyName: string): Promise<NewsItem[]> {
 
 async function saveNewsItem(companyId: string, news: NewsItem): Promise<boolean> {
   try {
+    // 이중 체크 (동시 요청 방지)
     const exists = await prisma.news.findFirst({
       where: { sourceUrl: news.sourceUrl }
     });
@@ -240,6 +257,7 @@ export interface CrawlResult {
   success: boolean;
   totalFound: number;
   totalSaved: number;
+  skippedDuplicates: number;
   startedAt: Date;
   completedAt: Date;
   error?: string;
@@ -249,6 +267,7 @@ export async function runServerlessCrawler(): Promise<CrawlResult> {
   const startedAt = new Date();
   let totalFound = 0;
   let totalSaved = 0;
+  let skippedDuplicates = 0;
 
   const crawlLog = await prisma.crawlLog.create({
     data: {
@@ -268,7 +287,7 @@ export async function runServerlessCrawler(): Promise<CrawlResult> {
     console.log(`OpenAI API Key: ${process.env.OPENAI_API_KEY ? 'configured' : 'NOT configured'}`);
 
     for (const company of companies) {
-      console.log(`\nCrawling: ${company.name}`);
+      console.log(`\n🔍 Crawling: ${company.name}`);
       const newsList = await crawlCompanyNews(company.name);
       totalFound += newsList.length;
 
@@ -276,10 +295,11 @@ export async function runServerlessCrawler(): Promise<CrawlResult> {
         if (await saveNewsItem(company.id, news)) {
           totalSaved++;
           console.log(`  ✅ Saved: ${news.title.substring(0, 40)}...`);
+        } else {
+          skippedDuplicates++;
         }
       }
 
-      // Rate limiting between companies
       await new Promise(r => setTimeout(r, 300));
     }
 
@@ -294,12 +314,13 @@ export async function runServerlessCrawler(): Promise<CrawlResult> {
       },
     });
 
-    console.log(`\nCrawl completed: Found ${totalFound}, Saved ${totalSaved}`);
+    console.log(`\n✅ Crawl completed: Found ${totalFound}, Saved ${totalSaved}, Skipped ${skippedDuplicates}`);
 
     return {
       success: true,
       totalFound,
       totalSaved,
+      skippedDuplicates,
       startedAt,
       completedAt,
     };
@@ -322,6 +343,7 @@ export async function runServerlessCrawler(): Promise<CrawlResult> {
       success: false,
       totalFound,
       totalSaved,
+      skippedDuplicates,
       startedAt,
       completedAt,
       error: errorMessage,
