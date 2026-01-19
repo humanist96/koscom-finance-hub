@@ -4,9 +4,8 @@ generator client {
 }
 
 datasource db {
-  provider  = "postgresql"
-  url       = env("DATABASE_URL")
-  directUrl = env("DIRECT_URL")
+  provider = "sqlite"
+  url      = env("DATABASE_URL")
 }
 
 // 증권사 정보
@@ -25,6 +24,7 @@ model SecuritiesCompany {
   news       News[]
   personnel  PersonnelChange[]
   favorites  UserFavorite[]
+  contracts  CustomerContract[]
 
   @@map("securities_companies")
 }
@@ -163,6 +163,68 @@ model CrawlLog {
   @@map("crawl_logs")
 }
 
+// 서비스 마스터 (Powerbase 서비스 목록)
+model ServiceMaster {
+  id          String   @id @default(cuid())
+  code        String   @unique  // NXT, SOR, FDS 등
+  name        String           // 서비스 전체명
+  category    String           // TRADING, COMPLIANCE, CHANNEL, INFRA
+  description String?
+  isActive    Boolean  @default(true)
+  createdAt   DateTime @default(now())
+
+  @@map("service_masters")
+}
+
+// 고객사 계약 현황
+model CustomerContract {
+  id              String   @id @default(cuid())
+  companyId       String
+  company         SecuritiesCompany @relation(fields: [companyId], references: [id])
+
+  // 기본 정보
+  orderNumber     Int              // 순번
+  category        String           // 구분: DOMESTIC, FOREIGN, MIGRATED
+  customerType    String           // 고객분류: SECURITIES, INSTITUTION, ASSET_MGMT, FUTURES, MEDIA
+  progressNotes   String?          // 진행사항
+
+  // 매출 정보 (단위: 억원)
+  currentRevenue    Decimal? // 당기매출
+  powerbaseRevenue  Decimal? // PowerBASE 매출
+  year2025Revenue   Decimal? // 2025년 매출
+
+  // 계약 연도
+  contractYear    Int    @default(2025)
+
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+
+  services        ServiceContract[]
+
+  @@index([companyId])
+  @@index([category])
+  @@index([customerType])
+  @@map("customer_contracts")
+}
+
+// 서비스 계약 정보
+model ServiceContract {
+  id              String   @id @default(cuid())
+  contractId      String
+  contract        CustomerContract @relation(fields: [contractId], references: [id], onDelete: Cascade)
+
+  serviceCode     String           // 서비스 코드
+  serviceName     String           // 서비스명
+  amount          Decimal?         // 계약 금액 (억원)
+  status          String           // CONTRACTED, NEGOTIATING, PENDING
+
+  createdAt       DateTime @default(now())
+
+  @@index([contractId])
+  @@index([serviceCode])
+  @@map("service_contracts")
+}
+
 // 주간 리포트
 model WeeklyReport {
   id            String   @id @default(cuid())
@@ -170,20 +232,20 @@ model WeeklyReport {
   weekEnd       DateTime // 주간 종료일
 
   // 카테고리별 요약
-  businessSummary   String?  @db.Text // 실적/사업 동향
-  personnelSummary  String?  @db.Text // 인사 동향
-  productSummary    String?  @db.Text // 상품/서비스 동향
-  irSummary         String?  @db.Text // IR/공시 동향
-  eventSummary      String?  @db.Text // 이벤트 동향
-  generalSummary    String?  @db.Text // 일반 동향
+  businessSummary   String? // 실적/사업 동향
+  personnelSummary  String? // 인사 동향
+  productSummary    String? // 상품/서비스 동향
+  irSummary         String? // IR/공시 동향
+  eventSummary      String? // 이벤트 동향
+  generalSummary    String? // 일반 동향
 
   // 전체 요약 및 마무리
-  executiveSummary  String?  @db.Text // 주요 하이라이트
-  closingRemarks    String?  @db.Text // 마무리 멘트
+  executiveSummary  String? // 주요 하이라이트
+  closingRemarks    String? // 마무리 멘트
 
   // 통계
   totalNewsCount    Int      @default(0)
-  companyMentions   Json?    // 증권사별 언급 횟수
+  companyMentions   String?  // 증권사별 언급 횟수 (JSON string)
 
   status      String   @default("DRAFT") // DRAFT, PUBLISHED
   createdAt   DateTime @default(now())
