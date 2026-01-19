@@ -87,11 +87,11 @@ export function Sidebar() {
 
   // Powerbase 고객사만 필터링
   const filteredCompanies = showPowerbaseOnly
-    ? sortedCompanies.filter((c: { isPowerbaseClient?: boolean }) => c.isPowerbaseClient)
+    ? sortedCompanies.filter(c => c.isPowerbaseClient)
     : sortedCompanies;
 
   // Powerbase 고객사 수
-  const powerbaseCount = companies.filter((c: { isPowerbaseClient?: boolean }) => c.isPowerbaseClient).length;
+  const powerbaseCount = companies.filter(c => c.isPowerbaseClient).length;
 
   const hasActiveFilters =
     selectedCompanyIds.length > 0 ||
@@ -208,7 +208,7 @@ export function Sidebar() {
               </div>
             ) : (
               <div className="space-y-1">
-                {filteredCompanies.map((company: { id: string; name: string; isPowerbaseClient?: boolean; _count?: { news?: number } }) => {
+                {filteredCompanies.map(company => {
                   const isAssigned = assignedCompanyIds.includes(company.id);
                   return (
                     <label

@@ -8,6 +8,7 @@ export interface SecuritiesCompany {
   websiteUrl?: string | null;
   newsroomUrl?: string | null;
   isActive: boolean;
+  isPowerbaseClient?: boolean;
   createdAt: Date;
   updatedAt: Date;
 }

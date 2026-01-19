@@ -40,7 +40,7 @@ export function MobileFilter() {
 
   // Powerbase 고객사만 필터링
   const filteredCompanies = showPowerbaseOnly
-    ? companies.filter((c: { isPowerbaseClient?: boolean }) => c.isPowerbaseClient)
+    ? companies.filter(c => c.isPowerbaseClient)
     : companies;
 
   const activeFilterCount =
@@ -141,7 +141,7 @@ export function MobileFilter() {
               <div>
                 <h4 className="mb-2 font-medium">증권사 ({filteredCompanies.length})</h4>
                 <div className="flex flex-wrap gap-2">
-                  {filteredCompanies.map((company: { id: string; name: string }) => (
+                  {filteredCompanies.map(company => (
                     <Badge
                       key={company.id}
                       variant={selectedCompanyIds.includes(company.id) ? 'default' : 'outline'}
