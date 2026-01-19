@@ -17,23 +17,19 @@ interface CategoryNews {
   }>;
 }
 
-// 이번 주 시작/종료일 계산
+// 최근 7일 기간 계산
 export function getWeekRange(date: Date = new Date()): { weekStart: Date; weekEnd: Date } {
-  const d = new Date(date);
-  const day = d.getDay();
-  const diff = d.getDate() - day + (day === 0 ? -6 : 1); // 월요일 시작
-
-  const weekStart = new Date(d.setDate(diff));
-  weekStart.setHours(0, 0, 0, 0);
-
-  const weekEnd = new Date(weekStart);
-  weekEnd.setDate(weekEnd.getDate() + 6);
+  const weekEnd = new Date(date);
   weekEnd.setHours(23, 59, 59, 999);
+
+  const weekStart = new Date(weekEnd);
+  weekStart.setDate(weekStart.getDate() - 6); // 오늘 포함 7일
+  weekStart.setHours(0, 0, 0, 0);
 
   return { weekStart, weekEnd };
 }
 
-// 카테고리별 뉴스 수집
+// 카테고리별 뉴스 수집 (Powerbase 고객사만)
 async function getNewsByCategory(weekStart: Date, weekEnd: Date): Promise<CategoryNews[]> {
   const categories = ['BUSINESS', 'PERSONNEL', 'PRODUCT', 'IR', 'EVENT', 'GENERAL'];
   const result: CategoryNews[] = [];
@@ -45,6 +41,9 @@ async function getNewsByCategory(weekStart: Date, weekEnd: Date): Promise<Catego
         publishedAt: {
           gte: weekStart,
           lte: weekEnd,
+        },
+        company: {
+          isPowerbaseClient: true, // Powerbase 고객사만 필터링
         },
       },
       include: {
@@ -70,13 +69,16 @@ async function getNewsByCategory(weekStart: Date, weekEnd: Date): Promise<Catego
   return result;
 }
 
-// 증권사별 언급 횟수 계산
+// 증권사별 언급 횟수 계산 (Powerbase 고객사만)
 async function getCompanyMentions(weekStart: Date, weekEnd: Date): Promise<Record<string, number>> {
   const news = await prisma.news.findMany({
     where: {
       publishedAt: {
         gte: weekStart,
         lte: weekEnd,
+      },
+      company: {
+        isPowerbaseClient: true, // Powerbase 고객사만 필터링
       },
     },
     include: {
@@ -97,7 +99,7 @@ async function getCompanyMentions(weekStart: Date, weekEnd: Date): Promise<Recor
 // OpenAI로 카테고리별 요약 생성
 async function generateCategorySummary(categoryName: string, news: CategoryNews['news']): Promise<string> {
   if (news.length === 0) {
-    return '이번 주에는 관련 뉴스가 없습니다.';
+    return '최근 7일간 관련 뉴스가 없습니다.';
   }
 
   const categoryKorean: Record<string, string> = {
@@ -119,15 +121,15 @@ async function generateCategorySummary(categoryName: string, news: CategoryNews[
       messages: [
         {
           role: 'system',
-          content: `당신은 증권업계 전문 애널리스트입니다. 주어진 ${categoryKorean[categoryName]} 관련 뉴스들을 분석하여 주간 동향을 3-5문장으로 요약해주세요.
-- 주요 증권사들의 움직임과 트렌드를 파악하세요
+          content: `당신은 증권업계 전문 애널리스트입니다. 주어진 ${categoryKorean[categoryName]} 관련 뉴스들을 분석하여 최근 동향을 3-5문장으로 요약해주세요.
+- Powerbase 고객사 증권사들의 움직임과 트렌드를 파악하세요
 - 업계 전반의 흐름을 설명하세요
 - 구체적인 수치나 사례를 포함하세요
 - 전문적이면서도 읽기 쉬운 문체를 사용하세요`
         },
         {
           role: 'user',
-          content: `다음은 이번 주 ${categoryKorean[categoryName]} 관련 뉴스입니다:\n\n${newsText}`
+          content: `다음은 최근 7일간 Powerbase 고객사 ${categoryKorean[categoryName]} 관련 뉴스입니다:\n\n${newsText}`
         }
       ],
       max_tokens: 500,
@@ -137,7 +139,7 @@ async function generateCategorySummary(categoryName: string, news: CategoryNews[
     return response.choices[0]?.message?.content || '요약을 생성할 수 없습니다.';
   } catch (error) {
     console.error(`Error generating ${categoryName} summary:`, error);
-    return `이번 주 ${categoryKorean[categoryName]} 관련 주요 뉴스 ${news.length}건이 수집되었습니다.`;
+    return `최근 7일간 Powerbase 고객사 ${categoryKorean[categoryName]} 관련 주요 뉴스 ${news.length}건이 수집되었습니다.`;
   }
 }
 
@@ -155,14 +157,14 @@ async function generateExecutiveSummary(categorySummaries: Record<string, string
         {
           role: 'system',
           content: `당신은 코스콤 금융영업부의 주간 브리핑 담당자입니다.
-카테고리별 요약을 바탕으로 이번 주 증권업계의 핵심 하이라이트를 3-4문장으로 정리해주세요.
+카테고리별 요약을 바탕으로 최근 7일간 Powerbase 고객사 증권업계의 핵심 하이라이트를 3-4문장으로 정리해주세요.
 - 가장 중요한 이슈를 먼저 언급하세요
 - 업계 전반의 트렌드를 짚어주세요
 - 영업 담당자들이 고객사 미팅에서 활용할 수 있는 인사이트를 제공하세요`
         },
         {
           role: 'user',
-          content: `이번 주 총 ${totalCount}건의 뉴스가 수집되었습니다.\n\n${summaryText}`
+          content: `최근 7일간 Powerbase 고객사 총 ${totalCount}건의 뉴스가 수집되었습니다.\n\n${summaryText}`
         }
       ],
       max_tokens: 400,
@@ -172,7 +174,7 @@ async function generateExecutiveSummary(categorySummaries: Record<string, string
     return response.choices[0]?.message?.content || '';
   } catch (error) {
     console.error('Error generating executive summary:', error);
-    return `이번 주 증권업계에서 총 ${totalCount}건의 뉴스가 발생했습니다.`;
+    return `최근 7일간 Powerbase 고객사 증권업계에서 총 ${totalCount}건의 뉴스가 발생했습니다.`;
   }
 }
 
@@ -199,7 +201,7 @@ async function generateClosingRemarks(executiveSummary: string, mentions: Record
         },
         {
           role: 'user',
-          content: `이번 주 요약: ${executiveSummary}\n\n뉴스가 많았던 증권사: ${topCompanies}`
+          content: `최근 7일 요약: ${executiveSummary}\n\n뉴스가 많았던 Powerbase 고객사: ${topCompanies}`
         }
       ],
       max_tokens: 300,
@@ -217,7 +219,7 @@ async function generateClosingRemarks(executiveSummary: string, mentions: Record
 export async function generateWeeklyReport(date?: Date): Promise<{ success: boolean; reportId?: string; error?: string }> {
   const { weekStart, weekEnd } = getWeekRange(date);
 
-  console.log(`Generating weekly report for ${weekStart.toISOString()} - ${weekEnd.toISOString()}`);
+  console.log(`Generating report for last 7 days (Powerbase clients only): ${weekStart.toISOString()} - ${weekEnd.toISOString()}`);
 
   // 이미 존재하는 리포트 확인
   const existing = await prisma.weeklyReport.findFirst({
@@ -234,7 +236,7 @@ export async function generateWeeklyReport(date?: Date): Promise<{ success: bool
     const totalCount = categoryNews.reduce((sum, c) => sum + c.news.length, 0);
 
     if (totalCount === 0) {
-      return { success: false, error: '이번 주 수집된 뉴스가 없습니다.' };
+      return { success: false, error: '최근 7일간 Powerbase 고객사 관련 수집된 뉴스가 없습니다.' };
     }
 
     console.log(`Found ${totalCount} news items across categories`);
