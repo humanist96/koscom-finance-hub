@@ -16,6 +16,7 @@ export async function GET(request: NextRequest) {
     const companyIds = searchParams.get('companyIds')?.split(',').filter(Boolean) || [];
     const categories = searchParams.get('categories')?.split(',').filter(Boolean) || [];
     const isPersonnel = searchParams.get('isPersonnel');
+    const isPowerbaseOnly = searchParams.get('isPowerbaseOnly') === 'true';
     const keyword = searchParams.get('keyword');
     const dateRange = searchParams.get('dateRange') || '1week';
 
@@ -43,6 +44,11 @@ export async function GET(request: NextRequest) {
 
     // where 조건 구성
     const where: Record<string, unknown> = {};
+
+    // Powerbase 고객사만 필터링
+    if (isPowerbaseOnly) {
+      where.company = { isPowerbaseClient: true };
+    }
 
     if (companyIds.length > 0) {
       where.companyId = { in: companyIds };

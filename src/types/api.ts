@@ -40,6 +40,7 @@ export interface GetNewsParams extends PaginationParams, SortParams {
   category?: string;
   categories?: string[];
   isPersonnel?: boolean;
+  isPowerbaseOnly?: boolean;
   startDate?: string;
   endDate?: string;
   keyword?: string;

@@ -14,6 +14,7 @@ export function NewsList() {
     selectedCategories,
     dateRange,
     showPersonnelOnly,
+    showPowerbaseOnly,
     searchKeyword,
   } = useFilterStore();
 
@@ -32,6 +33,7 @@ export function NewsList() {
     companyIds: effectiveCompanyIds,
     categories: selectedCategories.length > 0 ? selectedCategories : undefined,
     isPersonnel: showPersonnelOnly || undefined,
+    isPowerbaseOnly: showPowerbaseOnly || undefined,
     startDate: dateRange,
     keyword: searchKeyword || undefined,
     limit: 50,

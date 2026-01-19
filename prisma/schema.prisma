@@ -4,9 +4,8 @@ generator client {
 }
 
 datasource db {
-  provider = "postgresql"
+  provider = "sqlite"
   url      = env("DATABASE_URL")
-  directUrl = env("DIRECT_URL")
 }
 
 // 증권사 정보
@@ -18,6 +17,7 @@ model SecuritiesCompany {
   websiteUrl  String?  // 공식 홈페이지
   newsroomUrl String?  // 뉴스룸/보도자료 페이지
   isActive    Boolean  @default(true)
+  isPowerbaseClient Boolean @default(false) // 코스콤 Powerbase 고객사 여부
   createdAt   DateTime @default(now())
   updatedAt   DateTime @updatedAt
 
@@ -169,20 +169,20 @@ model WeeklyReport {
   weekEnd       DateTime // 주간 종료일
 
   // 카테고리별 요약
-  businessSummary   String?  @db.Text // 실적/사업 동향
-  personnelSummary  String?  @db.Text // 인사 동향
-  productSummary    String?  @db.Text // 상품/서비스 동향
-  irSummary         String?  @db.Text // IR/공시 동향
-  eventSummary      String?  @db.Text // 이벤트 동향
-  generalSummary    String?  @db.Text // 일반 동향
+  businessSummary   String?   // 실적/사업 동향
+  personnelSummary  String?   // 인사 동향
+  productSummary    String?   // 상품/서비스 동향
+  irSummary         String?   // IR/공시 동향
+  eventSummary      String?   // 이벤트 동향
+  generalSummary    String?   // 일반 동향
 
   // 전체 요약 및 마무리
-  executiveSummary  String?  @db.Text // 주요 하이라이트
-  closingRemarks    String?  @db.Text // 마무리 멘트
+  executiveSummary  String?   // 주요 하이라이트
+  closingRemarks    String?   // 마무리 멘트
 
   // 통계
   totalNewsCount    Int      @default(0)
-  companyMentions   Json?    // 증권사별 언급 횟수
+  companyMentions   String?  // 증권사별 언급 횟수 (JSON 문자열)
 
   status      String   @default("DRAFT") // DRAFT, PUBLISHED
   createdAt   DateTime @default(now())

@@ -6,6 +6,7 @@ interface FilterState {
   selectedCompanyIds: string[];
   selectedCategories: NewsCategory[];
   showPersonnelOnly: boolean;
+  showPowerbaseOnly: boolean;
   dateRange: 'today' | '3days' | '1week' | '1month' | 'all';
   searchKeyword: string;
 
@@ -15,6 +16,7 @@ interface FilterState {
   setSelectedCategories: (categories: NewsCategory[]) => void;
   toggleCategory: (category: NewsCategory) => void;
   setShowPersonnelOnly: (value: boolean) => void;
+  setShowPowerbaseOnly: (value: boolean) => void;
   setDateRange: (range: 'today' | '3days' | '1week' | '1month' | 'all') => void;
   setSearchKeyword: (keyword: string) => void;
   resetFilters: () => void;
@@ -24,6 +26,7 @@ const initialState = {
   selectedCompanyIds: [] as string[],
   selectedCategories: [] as NewsCategory[],
   showPersonnelOnly: false,
+  showPowerbaseOnly: false,
   dateRange: '1week' as const,
   searchKeyword: '',
 };
@@ -52,6 +55,8 @@ export const useFilterStore = create<FilterState>((set, get) => ({
   },
 
   setShowPersonnelOnly: value => set({ showPersonnelOnly: value }),
+
+  setShowPowerbaseOnly: value => set({ showPowerbaseOnly: value }),
 
   setDateRange: range => set({ dateRange: range }),
 

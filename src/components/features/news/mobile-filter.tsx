@@ -19,10 +19,12 @@ export function MobileFilter() {
     selectedCategories,
     dateRange,
     showPersonnelOnly,
+    showPowerbaseOnly,
     toggleCompany,
     toggleCategory,
     setDateRange,
     setShowPersonnelOnly,
+    setShowPowerbaseOnly,
     resetFilters,
   } = useFilterStore();
 
@@ -36,10 +38,16 @@ export function MobileFilter() {
     'EVENT',
   ];
 
+  // Powerbase 고객사만 필터링
+  const filteredCompanies = showPowerbaseOnly
+    ? companies.filter((c: { isPowerbaseClient?: boolean }) => c.isPowerbaseClient)
+    : companies;
+
   const activeFilterCount =
     selectedCompanyIds.length +
     selectedCategories.length +
     (showPersonnelOnly ? 1 : 0) +
+    (showPowerbaseOnly ? 1 : 0) +
     (dateRange !== '1week' ? 1 : 0);
 
   return (
@@ -99,6 +107,19 @@ export function MobileFilter() {
                 </label>
               </div>
 
+              {/* Powerbase 고객사 */}
+              <div>
+                <label className="flex items-center gap-2">
+                  <input
+                    type="checkbox"
+                    checked={showPowerbaseOnly}
+                    onChange={e => setShowPowerbaseOnly(e.target.checked)}
+                    className="h-4 w-4 rounded"
+                  />
+                  <span>Powerbase 고객사만</span>
+                </label>
+              </div>
+
               {/* 카테고리 */}
               <div>
                 <h4 className="mb-2 font-medium">카테고리</h4>
@@ -118,9 +139,9 @@ export function MobileFilter() {
 
               {/* 증권사 */}
               <div>
-                <h4 className="mb-2 font-medium">증권사</h4>
+                <h4 className="mb-2 font-medium">증권사 ({filteredCompanies.length})</h4>
                 <div className="flex flex-wrap gap-2">
-                  {companies.map(company => (
+                  {filteredCompanies.map((company: { id: string; name: string }) => (
                     <Badge
                       key={company.id}
                       variant={selectedCompanyIds.includes(company.id) ? 'default' : 'outline'}

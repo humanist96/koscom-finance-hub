@@ -54,10 +54,12 @@ export function Sidebar() {
     selectedCategories,
     dateRange,
     showPersonnelOnly,
+    showPowerbaseOnly,
     toggleCompany,
     toggleCategory,
     setDateRange,
     setShowPersonnelOnly,
+    setShowPowerbaseOnly,
     resetFilters,
   } = useFilterStore();
 
@@ -83,11 +85,20 @@ export function Sidebar() {
     return 0;
   });
 
+  // Powerbase 고객사만 필터링
+  const filteredCompanies = showPowerbaseOnly
+    ? sortedCompanies.filter((c: { isPowerbaseClient?: boolean }) => c.isPowerbaseClient)
+    : sortedCompanies;
+
+  // Powerbase 고객사 수
+  const powerbaseCount = companies.filter((c: { isPowerbaseClient?: boolean }) => c.isPowerbaseClient).length;
+
   const hasActiveFilters =
     selectedCompanyIds.length > 0 ||
     selectedCategories.length > 0 ||
     dateRange !== '1week' ||
-    showPersonnelOnly;
+    showPersonnelOnly ||
+    showPowerbaseOnly;
 
   return (
     <aside className="hidden w-64 shrink-0 border-r bg-gray-50/50 lg:block">
@@ -124,12 +135,23 @@ export function Sidebar() {
           </div>
 
           {/* 인사 뉴스만 보기 */}
-          <div className="mb-6">
+          <div className="mb-4">
             <CheckboxItem
               id="personnel-only"
               checked={showPersonnelOnly}
               onCheckedChange={setShowPersonnelOnly}
               label="인사 뉴스만 보기"
+            />
+          </div>
+
+          {/* Powerbase 고객사만 보기 */}
+          <div className="mb-6">
+            <CheckboxItem
+              id="powerbase-only"
+              checked={showPowerbaseOnly}
+              onCheckedChange={setShowPowerbaseOnly}
+              label="Powerbase 고객사만"
+              count={powerbaseCount}
             />
           </div>
 
@@ -153,7 +175,7 @@ export function Sidebar() {
           <div>
             <div className="mb-2 flex items-center justify-between">
               <h3 className="text-sm font-semibold text-gray-700">
-                증권사 ({companies.length})
+                증권사 ({filteredCompanies.length}{showPowerbaseOnly ? '' : `/${companies.length}`})
               </h3>
               {isLoggedIn && (
                 <Link
@@ -186,7 +208,7 @@ export function Sidebar() {
               </div>
             ) : (
               <div className="space-y-1">
-                {sortedCompanies.map(company => {
+                {filteredCompanies.map((company: { id: string; name: string; isPowerbaseClient?: boolean; _count?: { news?: number } }) => {
                   const isAssigned = assignedCompanyIds.includes(company.id);
                   return (
                     <label

@@ -62,6 +62,7 @@ export const newsApi = {
     if (params?.companyIds?.length) queryParams.companyIds = params.companyIds.join(',');
     if (params?.categories?.length) queryParams.categories = params.categories.join(',');
     if (params?.isPersonnel !== undefined) queryParams.isPersonnel = String(params.isPersonnel);
+    if (params?.isPowerbaseOnly !== undefined) queryParams.isPowerbaseOnly = String(params.isPowerbaseOnly);
     if (params?.keyword) queryParams.keyword = params.keyword;
     if (params?.startDate) queryParams.dateRange = params.startDate;
 
