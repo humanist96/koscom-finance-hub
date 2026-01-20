@@ -1,11 +1,14 @@
 import { StyleSheet, Font } from '@react-pdf/renderer';
 
-// 한글 폰트 등록 (로컬 폰트 파일)
-const fontPath = process.cwd() + '/public/fonts';
+// 한글 폰트 등록 (Google Fonts에서 Nanum Gothic 사용)
+Font.register({
+  family: 'NanumGothic',
+  src: 'https://fonts.gstatic.com/ea/nanumgothic/v5/NanumGothic-Regular.ttf',
+});
 
 Font.register({
-  family: 'ArialUnicode',
-  src: fontPath + '/ArialUnicode.ttf',
+  family: 'NanumGothicBold',
+  src: 'https://fonts.gstatic.com/ea/nanumgothic/v5/NanumGothic-Bold.ttf',
 });
 
 // 폰트 하이픈 비활성화
@@ -16,7 +19,7 @@ export const styles = StyleSheet.create({
   page: {
     padding: 40,
     paddingBottom: 60,
-    fontFamily: 'ArialUnicode',
+    fontFamily: 'NanumGothic',
     fontSize: 10,
     lineHeight: 1.6,
     backgroundColor: '#ffffff',
