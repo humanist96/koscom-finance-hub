@@ -15,6 +15,7 @@ import {
   ChevronRight,
   Building2,
   Sparkles,
+  Download,
 } from 'lucide-react';
 
 interface WeeklyReport {
@@ -64,6 +65,7 @@ export default function WeeklyReportPage() {
   const [report, setReport] = useState<WeeklyReport | null>(null);
   const [loading, setLoading] = useState(true);
   const [generating, setGenerating] = useState(false);
+  const [downloading, setDownloading] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
   const fetchReport = async () => {
@@ -103,6 +105,45 @@ export default function WeeklyReportPage() {
     }
   };
 
+  const downloadPDF = async () => {
+    if (!report) return;
+
+    try {
+      setDownloading(true);
+      const response = await fetch(`/api/reports/export/weekly?id=${report.id}`);
+
+      if (!response.ok) {
+        throw new Error('PDF 다운로드 실패');
+      }
+
+      const blob = await response.blob();
+      const url = window.URL.createObjectURL(blob);
+      const link = document.createElement('a');
+      link.href = url;
+
+      // 파일명 추출 또는 기본값 사용
+      const contentDisposition = response.headers.get('Content-Disposition');
+      let filename = '주간리포트.pdf';
+      if (contentDisposition) {
+        const match = contentDisposition.match(/filename\*?=(?:UTF-8'')?["']?([^"';\n]+)/i);
+        if (match) {
+          filename = decodeURIComponent(match[1]);
+        }
+      }
+
+      link.download = filename;
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
+      window.URL.revokeObjectURL(url);
+    } catch (err) {
+      console.error('PDF 다운로드 실패:', err);
+      setError('PDF 다운로드에 실패했습니다.');
+    } finally {
+      setDownloading(false);
+    }
+  };
+
   useEffect(() => {
     fetchReport();
   }, []);
@@ -138,23 +179,44 @@ export default function WeeklyReportPage() {
             증권업계 주요 이슈를 한눈에 파악하세요
           </p>
         </div>
-        <button
-          onClick={generateReport}
-          disabled={generating}
-          className="flex items-center gap-2 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 disabled:opacity-50 transition-colors"
-        >
-          {generating ? (
-            <>
-              <RefreshCw className="w-4 h-4 animate-spin" />
-              생성 중...
-            </>
-          ) : (
-            <>
-              <Sparkles className="w-4 h-4" />
-              리포트 생성
-            </>
+        <div className="flex items-center gap-2">
+          {report && (
+            <button
+              onClick={downloadPDF}
+              disabled={downloading}
+              className="flex items-center gap-2 px-4 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700 disabled:opacity-50 transition-colors"
+            >
+              {downloading ? (
+                <>
+                  <RefreshCw className="w-4 h-4 animate-spin" />
+                  다운로드 중...
+                </>
+              ) : (
+                <>
+                  <Download className="w-4 h-4" />
+                  PDF 다운로드
+                </>
+              )}
+            </button>
           )}
-        </button>
+          <button
+            onClick={generateReport}
+            disabled={generating}
+            className="flex items-center gap-2 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 disabled:opacity-50 transition-colors"
+          >
+            {generating ? (
+              <>
+                <RefreshCw className="w-4 h-4 animate-spin" />
+                생성 중...
+              </>
+            ) : (
+              <>
+                <Sparkles className="w-4 h-4" />
+                리포트 생성
+              </>
+            )}
+          </button>
+        </div>
       </div>
 
       {error && !report && (
