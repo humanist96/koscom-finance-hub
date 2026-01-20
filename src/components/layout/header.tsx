@@ -2,7 +2,7 @@
 
 import { useState } from 'react';
 import Link from 'next/link';
-import { Search, Menu, Building2, X, Settings, User, LogOut, FileText, BarChart3 } from 'lucide-react';
+import { Search, Menu, Building2, X, Settings, User, LogOut, FileText, BarChart3, Bell } from 'lucide-react';
 import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
 import { Sheet, SheetContent, SheetTrigger } from '@/components/ui/sheet';
@@ -10,6 +10,7 @@ import { useDebounce } from '@/hooks/use-debounce';
 import { useSearch } from '@/hooks/use-search';
 import { useAuthStore } from '@/store/auth-store';
 import { useRouter } from 'next/navigation';
+import { AlertBell } from '@/components/features/alerts';
 
 export function Header() {
   const router = useRouter();
@@ -181,6 +182,9 @@ export function Header() {
             )}
           </div>
 
+          {/* Alert Bell */}
+          <AlertBell />
+
           {/* User Menu */}
           {isLoggedIn && user ? (
             <div className="relative">
@@ -215,6 +219,14 @@ export function Header() {
                     >
                       <Settings className="h-4 w-4" />
                       담당 증권사 설정
+                    </Link>
+                    <Link
+                      href="/dashboard/settings/alerts"
+                      className="flex w-full items-center gap-2 px-4 py-2 text-sm hover:bg-gray-50"
+                      onClick={() => setUserMenuOpen(false)}
+                    >
+                      <Bell className="h-4 w-4" />
+                      알림 설정
                     </Link>
                     <button
                       onClick={handleLogout}

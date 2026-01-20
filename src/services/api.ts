@@ -242,6 +242,143 @@ export interface ServiceStats {
   };
 }
 
+// ====== 알림 API ======
+export interface GetAlertsParams {
+  userId: string;
+  page?: number;
+  limit?: number;
+  unreadOnly?: boolean;
+}
+
+export interface NotificationItem {
+  id: string;
+  userId: string;
+  type: string;
+  title: string;
+  message: string;
+  linkType: string | null;
+  linkId: string | null;
+  isRead: boolean;
+  createdAt: string;
+}
+
+export interface AlertSettingsData {
+  keywordAlerts: {
+    id: string;
+    userId: string;
+    keywordId: string;
+    keyword: { id: string; name: string };
+    isActive: boolean;
+    createdAt: string;
+  }[];
+  companyAlerts: {
+    id: string;
+    userId: string;
+    companyId: string;
+    company: { id: string; name: string; logoUrl: string | null };
+    alertOnNews: boolean;
+    alertOnPersonnel: boolean;
+    isActive: boolean;
+    createdAt: string;
+  }[];
+}
+
+export const alertsApi = {
+  // 알림 목록 조회
+  getAll: async (params: GetAlertsParams) => {
+    const { data } = await api.get<ApiResponse<{
+      notifications: NotificationItem[];
+      total: number;
+      page: number;
+      limit: number;
+      hasMore: boolean;
+    }>>('/alerts', { params });
+    return data;
+  },
+
+  // 읽지 않은 알림 개수 조회
+  getUnreadCount: async (userId: string) => {
+    const { data } = await api.get<ApiResponse<{ count: number }>>('/alerts/unread-count', {
+      params: { userId },
+    });
+    return data;
+  },
+
+  // 알림 읽음 처리
+  markAsRead: async (id: string) => {
+    const { data } = await api.patch<ApiResponse<NotificationItem>>(`/alerts/${id}/read`);
+    return data;
+  },
+
+  // 모든 알림 읽음 처리
+  markAllAsRead: async (userId: string) => {
+    const { data } = await api.patch<ApiResponse<{ updatedCount: number }>>('/alerts/read-all', {
+      userId,
+    });
+    return data;
+  },
+
+  // 알림 삭제
+  delete: async (id: string) => {
+    const { data } = await api.delete<ApiResponse<null>>(`/alerts/${id}`);
+    return data;
+  },
+
+  // 알림 설정 조회
+  getSettings: async (userId: string) => {
+    const { data } = await api.get<ApiResponse<AlertSettingsData>>('/alerts/settings', {
+      params: { userId },
+    });
+    return data;
+  },
+
+  // 키워드 알림 추가
+  addKeywordAlert: async (userId: string, keyword: string) => {
+    const { data } = await api.post<ApiResponse<AlertSettingsData['keywordAlerts'][0]>>(
+      '/alerts/settings/keywords',
+      { userId, keyword }
+    );
+    return data;
+  },
+
+  // 키워드 알림 삭제
+  deleteKeywordAlert: async (id: string) => {
+    const { data } = await api.delete<ApiResponse<null>>(`/alerts/settings/keywords/${id}`);
+    return data;
+  },
+
+  // 회사 알림 추가
+  addCompanyAlert: async (userId: string, companyId: string, options?: {
+    alertOnNews?: boolean;
+    alertOnPersonnel?: boolean;
+  }) => {
+    const { data } = await api.post<ApiResponse<AlertSettingsData['companyAlerts'][0]>>(
+      '/alerts/settings/companies',
+      { userId, companyId, ...options }
+    );
+    return data;
+  },
+
+  // 회사 알림 수정
+  updateCompanyAlert: async (id: string, options: {
+    alertOnNews?: boolean;
+    alertOnPersonnel?: boolean;
+    isActive?: boolean;
+  }) => {
+    const { data } = await api.patch<ApiResponse<AlertSettingsData['companyAlerts'][0]>>(
+      `/alerts/settings/companies/${id}`,
+      options
+    );
+    return data;
+  },
+
+  // 회사 알림 삭제
+  deleteCompanyAlert: async (id: string) => {
+    const { data } = await api.delete<ApiResponse<null>>(`/alerts/settings/companies/${id}`);
+    return data;
+  },
+};
+
 export const contractsApi = {
   // 계약 목록 조회
   getAll: async (params?: GetContractsParams) => {

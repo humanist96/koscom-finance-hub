@@ -22,10 +22,11 @@ model SecuritiesCompany {
   createdAt   DateTime @default(now())
   updatedAt   DateTime @updatedAt
 
-  news       News[]
-  personnel  PersonnelChange[]
-  favorites  UserFavorite[]
-  contracts  CustomerContract[]
+  news          News[]
+  personnel     PersonnelChange[]
+  favorites     UserFavorite[]
+  contracts     CustomerContract[]
+  companyAlerts CompanyAlert[]
 
   @@map("securities_companies")
 }
@@ -117,8 +118,10 @@ model User {
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
-  favorites UserFavorite[]
-  alerts    KeywordAlert[]
+  favorites      UserFavorite[]
+  alerts         KeywordAlert[]
+  notifications  Notification[]
+  companyAlerts  CompanyAlert[]
 
   @@map("users")
 }
@@ -257,4 +260,47 @@ model WeeklyReport {
   @@index([weekStart])
   @@index([status])
   @@map("weekly_reports")
+}
+
+// 알림 (Notification)
+model Notification {
+  id        String   @id @default(cuid())
+  userId    String
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  type      String   // KEYWORD_MATCH, COMPANY_NEWS, PERSONNEL_CHANGE, WEEKLY_REPORT, SYSTEM
+  title     String   // 알림 제목
+  message   String   // 알림 메시지
+
+  // 관련 엔티티 링크
+  linkType  String?  // NEWS, PERSONNEL, COMPANY, REPORT
+  linkId    String?  // 해당 엔티티의 ID
+
+  isRead    Boolean  @default(false)
+  createdAt DateTime @default(now())
+
+  @@index([userId])
+  @@index([isRead])
+  @@index([createdAt])
+  @@map("notifications")
+}
+
+// 회사 알림 설정
+model CompanyAlert {
+  id        String   @id @default(cuid())
+  userId    String
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  companyId String
+  company   SecuritiesCompany @relation(fields: [companyId], references: [id], onDelete: Cascade)
+
+  alertOnNews      Boolean @default(true)  // 뉴스 알림
+  alertOnPersonnel Boolean @default(true)  // 인사이동 알림
+
+  isActive  Boolean  @default(true)
+  createdAt DateTime @default(now())
+
+  @@unique([userId, companyId])
+  @@index([userId])
+  @@index([companyId])
+  @@map("company_alerts")
 }
