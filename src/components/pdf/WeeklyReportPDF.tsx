@@ -170,34 +170,34 @@ export function WeeklyReportPDF({ report }: WeeklyReportPDFProps) {
         <View style={styles.twoColumn}>
           <View style={styles.column}>
             <CategorySection
-              emoji="📈"
+              emoji="[1]"
               title="실적/사업 동향"
               content={report.businessSummary}
             />
             <CategorySection
-              emoji="👥"
+              emoji="[2]"
               title="인사 동향"
               content={report.personnelSummary}
             />
             <CategorySection
-              emoji="📦"
+              emoji="[3]"
               title="상품/서비스"
               content={report.productSummary}
             />
           </View>
           <View style={styles.column}>
             <CategorySection
-              emoji="📋"
+              emoji="[4]"
               title="IR/공시"
               content={report.irSummary}
             />
             <CategorySection
-              emoji="🎉"
+              emoji="[5]"
               title="이벤트/행사"
               content={report.eventSummary}
             />
             <CategorySection
-              emoji="📰"
+              emoji="[6]"
               title="기타 동향"
               content={report.generalSummary}
             />
