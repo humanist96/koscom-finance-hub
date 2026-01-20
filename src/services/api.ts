@@ -379,6 +379,78 @@ export const alertsApi = {
   },
 };
 
+// 인사이트 데이터 타입
+export interface ContractInsights {
+  upsellOpportunities: {
+    migratedCustomers: {
+      count: number;
+      avgRevenue: number;
+      targetAvgRevenue: number;
+      potentialRevenue: number;
+      list: {
+        companyId: string;
+        companyName: string;
+        currentRevenue: number;
+        serviceCount: number;
+      }[];
+    };
+    serviceOpportunities: {
+      service: string;
+      serviceName: string;
+      category: string;
+      subscribedCount: number;
+      potentialCount: number;
+      avgAmount: number;
+      totalPotential: number;
+    }[];
+  };
+  focusCustomers: {
+    rank: number;
+    companyId: string;
+    companyName: string;
+    category: string;
+    year2025Revenue: number;
+    powerbaseRevenue: number;
+    progressNotes: string;
+    priority: string;
+    actionRequired: string;
+  }[];
+  riskCustomers: {
+    companyId: string;
+    companyName: string;
+    currentRevenue: number;
+    powerbaseRevenue: number;
+    riskType: 'CHURN' | 'DOWNGRADE' | 'INACTIVE';
+    riskNote: string;
+    riskLevel: 'HIGH' | 'MEDIUM' | 'LOW';
+  }[];
+  actionItems: {
+    shortTerm: {
+      companyName: string;
+      action: string;
+      priority: 'HIGH' | 'MEDIUM' | 'LOW';
+      estimatedRevenue: number;
+    }[];
+    midTerm: {
+      companyName: string;
+      action: string;
+      priority: 'HIGH' | 'MEDIUM' | 'LOW';
+      estimatedRevenue: number;
+    }[];
+    longTerm: {
+      companyName: string;
+      action: string;
+      priority: 'HIGH' | 'MEDIUM' | 'LOW';
+      estimatedRevenue: number;
+    }[];
+  };
+  summary: {
+    totalOpportunityRevenue: number;
+    atRiskRevenue: number;
+    focusCustomersRevenue: number;
+  };
+}
+
 export const contractsApi = {
   // 계약 목록 조회
   getAll: async (params?: GetContractsParams) => {
@@ -407,6 +479,12 @@ export const contractsApi = {
   // 서비스별 통계 조회
   getServiceStats: async () => {
     const { data } = await api.get<ApiResponse<ServiceStats>>('/contracts/services');
+    return data;
+  },
+
+  // 영업 인사이트 조회
+  getInsights: async () => {
+    const { data } = await api.get<ApiResponse<ContractInsights>>('/contracts/insights');
     return data;
   },
 };

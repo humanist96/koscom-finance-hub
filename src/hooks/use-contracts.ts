@@ -29,3 +29,12 @@ export function useServiceStats() {
     staleTime: 1000 * 60 * 10, // 10분
   });
 }
+
+// 영업 인사이트 조회 훅
+export function useContractInsights() {
+  return useQuery({
+    queryKey: ['contracts', 'insights'],
+    queryFn: () => contractsApi.getInsights(),
+    staleTime: 1000 * 60 * 10, // 10분
+  });
+}
