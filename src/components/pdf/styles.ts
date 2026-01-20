@@ -1,18 +1,11 @@
 import { StyleSheet, Font } from '@react-pdf/renderer';
 
-// 한글 폰트 등록 (Noto Sans KR - Google Fonts CDN)
+// 한글 폰트 등록 (로컬 폰트 파일)
+const fontPath = process.cwd() + '/public/fonts';
+
 Font.register({
-  family: 'NotoSansKR',
-  fonts: [
-    {
-      src: 'https://fonts.gstatic.com/s/notosanskr/v36/PbyxFmXiEBPT4ITbgNA5Cgms3VYcOA-vvnIzzuoyeLGq.woff2',
-      fontWeight: 'normal',
-    },
-    {
-      src: 'https://fonts.gstatic.com/s/notosanskr/v36/PbyxFmXiEBPT4ITbgNA5Cgms3VYcOA-vvnIzzuozHLCq5Vk.woff2',
-      fontWeight: 'bold',
-    },
-  ],
+  family: 'ArialUnicode',
+  src: fontPath + '/ArialUnicode.ttf',
 });
 
 // 폰트 하이픈 비활성화
@@ -23,7 +16,7 @@ export const styles = StyleSheet.create({
   page: {
     padding: 40,
     paddingBottom: 60,
-    fontFamily: 'NotoSansKR',
+    fontFamily: 'ArialUnicode',
     fontSize: 10,
     lineHeight: 1.6,
     backgroundColor: '#ffffff',

@@ -1,9 +1,9 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { renderToBuffer } from '@react-pdf/renderer';
+import { renderToBuffer, DocumentProps } from '@react-pdf/renderer';
 import { prisma } from '@/lib/prisma';
 import { WeeklyReportPDF } from '@/components/pdf';
 import { format } from 'date-fns';
-import React from 'react';
+import React, { ReactElement } from 'react';
 
 export async function GET(request: NextRequest) {
   try {
@@ -41,14 +41,14 @@ export async function GET(request: NextRequest) {
 
     // PDF 생성
     const pdfBuffer = await renderToBuffer(
-      React.createElement(WeeklyReportPDF, { report: reportData })
+      React.createElement(WeeklyReportPDF, { report: reportData }) as ReactElement<DocumentProps>
     );
 
     // 파일명 생성
     const filename = `주간리포트_${format(new Date(report.weekStart), 'yyyyMMdd')}_${format(new Date(report.weekEnd), 'yyyyMMdd')}.pdf`;
 
     // PDF 응답 반환
-    return new NextResponse(pdfBuffer, {
+    return new NextResponse(new Uint8Array(pdfBuffer), {
       status: 200,
       headers: {
         'Content-Type': 'application/pdf',
