@@ -8,28 +8,27 @@ import { Button } from '@/components/ui/button';
 import { Sheet, SheetContent, SheetTrigger } from '@/components/ui/sheet';
 import { useDebounce } from '@/hooks/use-debounce';
 import { useSearch } from '@/hooks/use-search';
-import { useAuthStore } from '@/store/auth-store';
-import { useRouter } from 'next/navigation';
+import { useSession, signOut } from 'next-auth/react';
 import { AlertBell } from '@/components/features/alerts';
 
 export function Header() {
-  const router = useRouter();
+  const { data: session, status } = useSession();
   const [searchOpen, setSearchOpen] = useState(false);
   const [searchQuery, setSearchQuery] = useState('');
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
   const [userMenuOpen, setUserMenuOpen] = useState(false);
 
-  const { user, isLoggedIn, logout } = useAuthStore();
+  const isLoggedIn = status === 'authenticated' && !!session?.user;
+  const user = session?.user;
 
   const debouncedQuery = useDebounce(searchQuery, 300);
   const { data: searchResults, isLoading } = useSearch(
     debouncedQuery.length >= 2 ? { query: debouncedQuery } : null
   );
 
-  const handleLogout = () => {
-    logout();
+  const handleLogout = async () => {
     setUserMenuOpen(false);
-    router.push('/');
+    await signOut({ callbackUrl: '/' });
   };
 
   return (
@@ -197,9 +196,9 @@ export function Header() {
                 className="flex items-center gap-2 rounded-full border border-gray-200 bg-gray-50 py-1 pl-1 pr-3 text-sm transition-colors hover:bg-gray-100"
               >
                 <div className="flex h-7 w-7 items-center justify-center rounded-full bg-gradient-to-br from-blue-500 to-cyan-500 text-xs font-medium text-white">
-                  {user.name.charAt(0)}
+                  {user.name?.charAt(0) || 'U'}
                 </div>
-                <span className="hidden font-medium sm:inline">{user.name}</span>
+                <span className="hidden font-medium sm:inline">{user.name || '사용자'}</span>
               </button>
 
               {userMenuOpen && (
@@ -210,11 +209,8 @@ export function Header() {
                   />
                   <div className="absolute right-0 top-full z-50 mt-2 w-56 rounded-lg border bg-white py-2 shadow-lg">
                     <div className="border-b px-4 py-2">
-                      <p className="font-medium">{user.name}</p>
+                      <p className="font-medium">{user.name || '사용자'}</p>
                       <p className="text-xs text-gray-500">{user.email}</p>
-                      <p className="mt-1 text-xs text-blue-600">
-                        담당 {user.assignedCompanyIds?.length || 0}개 증권사
-                      </p>
                     </div>
                     <Link
                       href="/dashboard/settings"
@@ -264,13 +260,11 @@ export function Header() {
                 <div className="mb-6 border-b pb-4">
                   <div className="flex items-center gap-3">
                     <div className="flex h-10 w-10 items-center justify-center rounded-full bg-gradient-to-br from-blue-500 to-cyan-500 text-lg font-medium text-white">
-                      {user.name.charAt(0)}
+                      {user.name?.charAt(0) || 'U'}
                     </div>
                     <div>
-                      <p className="font-medium">{user.name}</p>
-                      <p className="text-xs text-gray-500">
-                        담당 {user.assignedCompanyIds?.length || 0}개 증권사
-                      </p>
+                      <p className="font-medium">{user.name || '사용자'}</p>
+                      <p className="text-xs text-gray-500">{user.email}</p>
                     </div>
                   </div>
                 </div>
