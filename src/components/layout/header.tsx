@@ -2,7 +2,7 @@
 
 import { useState } from 'react';
 import Link from 'next/link';
-import { Search, Menu, Building2, X, Settings, User, LogOut, FileText, BarChart3, Bell } from 'lucide-react';
+import { Search, Menu, Building2, X, Settings, User, LogOut, FileText, BarChart3, Bell, Shield, Users } from 'lucide-react';
 import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
 import { Sheet, SheetContent, SheetTrigger } from '@/components/ui/sheet';
@@ -20,6 +20,7 @@ export function Header() {
 
   const isLoggedIn = status === 'authenticated' && !!session?.user;
   const user = session?.user;
+  const isAdmin = user?.role === 'ADMIN' || user?.role === 'SUPER_ADMIN';
 
   const debouncedQuery = useDebounce(searchQuery, 300);
   const { data: searchResults, isLoading } = useSearch(
@@ -82,6 +83,15 @@ export function Header() {
                 주간리포트
               </Link>
             </>
+          )}
+          {isAdmin && (
+            <Link
+              href="/admin/users"
+              className="flex items-center gap-1 text-sm font-medium text-purple-600 transition-colors hover:text-purple-700"
+            >
+              <Shield className="h-4 w-4" />
+              관리자
+            </Link>
           )}
         </nav>
 
@@ -228,6 +238,27 @@ export function Header() {
                       <Bell className="h-4 w-4" />
                       알림 설정
                     </Link>
+                    {isAdmin && (
+                      <>
+                        <div className="my-1 border-t" />
+                        <Link
+                          href="/admin/users"
+                          className="flex w-full items-center gap-2 px-4 py-2 text-sm text-purple-600 hover:bg-purple-50"
+                          onClick={() => setUserMenuOpen(false)}
+                        >
+                          <Users className="h-4 w-4" />
+                          사용자 관리
+                        </Link>
+                        <Link
+                          href="/admin/contracts"
+                          className="flex w-full items-center gap-2 px-4 py-2 text-sm text-purple-600 hover:bg-purple-50"
+                          onClick={() => setUserMenuOpen(false)}
+                        >
+                          <Shield className="h-4 w-4" />
+                          계약 관리
+                        </Link>
+                      </>
+                    )}
                     <button
                       onClick={handleLogout}
                       className="flex w-full items-center gap-2 px-4 py-2 text-sm text-red-600 hover:bg-gray-50"
@@ -311,8 +342,32 @@ export function Header() {
                     </Link>
                   </>
                 )}
+                {isAdmin && (
+                  <>
+                    <div className="border-t pt-4 mt-2">
+                      <p className="text-xs font-medium text-gray-400 uppercase mb-2">관리자</p>
+                    </div>
+                    <Link
+                      href="/admin/users"
+                      className="flex items-center gap-2 text-lg font-medium text-purple-600"
+                      onClick={() => setMobileMenuOpen(false)}
+                    >
+                      <Users className="h-5 w-5" />
+                      사용자 관리
+                    </Link>
+                    <Link
+                      href="/admin/contracts"
+                      className="flex items-center gap-2 text-lg font-medium text-purple-600"
+                      onClick={() => setMobileMenuOpen(false)}
+                    >
+                      <Shield className="h-5 w-5" />
+                      계약 관리
+                    </Link>
+                  </>
+                )}
                 {isLoggedIn ? (
                   <>
+                    <div className="border-t pt-4 mt-2" />
                     <Link
                       href="/dashboard/settings"
                       className="text-lg font-medium text-blue-600"

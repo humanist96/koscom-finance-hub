@@ -175,17 +175,26 @@ export async function PATCH(request: Request) {
           },
         });
 
-        // 이메일 발송
+        // 이메일 발송 시도
         const userName = targetUser.name || targetUser.email;
+        let emailSent = false;
         try {
-          await sendPasswordResetEmail(targetUser.email, userName, temporaryPassword);
+          emailSent = await sendPasswordResetEmail(targetUser.email, userName, temporaryPassword);
         } catch (emailError) {
           console.error('비밀번호 초기화 이메일 발송 실패:', emailError);
         }
 
         return NextResponse.json({
           success: true,
-          message: '비밀번호가 초기화되었습니다. 임시 비밀번호가 이메일로 발송되었습니다.',
+          data: {
+            temporaryPassword,
+            userEmail: targetUser.email,
+            userName,
+            emailSent,
+          },
+          message: emailSent
+            ? '비밀번호가 초기화되었습니다. 임시 비밀번호가 이메일로 발송되었습니다.'
+            : '비밀번호가 초기화되었습니다. (이메일 발송 실패 - 임시 비밀번호를 직접 전달해주세요)',
         });
       }
 

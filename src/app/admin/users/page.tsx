@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from 'react';
 import { useSearchParams } from 'next/navigation';
-import { Check, X, RefreshCw, Search, Filter, KeyRound } from 'lucide-react';
+import { Check, X, RefreshCw, Search, Filter, KeyRound, Copy, CheckCircle } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 
@@ -45,6 +45,13 @@ export default function AdminUsersPage() {
   const [rejectReason, setRejectReason] = useState('');
   const [showRejectModal, setShowRejectModal] = useState<string | null>(null);
   const [showResetPasswordModal, setShowResetPasswordModal] = useState<string | null>(null);
+  const [passwordResetResult, setPasswordResetResult] = useState<{
+    temporaryPassword: string;
+    userEmail: string;
+    userName: string;
+    emailSent: boolean;
+  } | null>(null);
+  const [copied, setCopied] = useState(false);
 
   const fetchUsers = async () => {
     setLoading(true);
@@ -81,9 +88,15 @@ export default function AdminUsersPage() {
 
       const data = await res.json();
       if (data.success) {
-        fetchUsers();
-        setShowRejectModal(null);
-        setRejectReason('');
+        // 비밀번호 초기화인 경우 결과 모달 표시
+        if (action === 'resetPassword' && data.data) {
+          setPasswordResetResult(data.data);
+          setShowResetPasswordModal(null);
+        } else {
+          fetchUsers();
+          setShowRejectModal(null);
+          setRejectReason('');
+        }
       } else {
         alert(data.error || '처리에 실패했습니다.');
       }
@@ -92,6 +105,24 @@ export default function AdminUsersPage() {
       alert('처리 중 오류가 발생했습니다.');
     } finally {
       setActionLoading(null);
+    }
+  };
+
+  const copyToClipboard = async (text: string) => {
+    try {
+      await navigator.clipboard.writeText(text);
+      setCopied(true);
+      setTimeout(() => setCopied(false), 2000);
+    } catch {
+      // Fallback for older browsers
+      const textArea = document.createElement('textarea');
+      textArea.value = text;
+      document.body.appendChild(textArea);
+      textArea.select();
+      document.execCommand('copy');
+      document.body.removeChild(textArea);
+      setCopied(true);
+      setTimeout(() => setCopied(false), 2000);
     }
   };
 
@@ -350,14 +381,14 @@ export default function AdminUsersPage() {
         </div>
       )}
 
-      {/* 비밀번호 초기화 모달 */}
+      {/* 비밀번호 초기화 확인 모달 */}
       {showResetPasswordModal && (
         <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50">
           <div className="bg-white rounded-xl p-6 w-full max-w-md mx-4">
             <h3 className="text-lg font-semibold text-gray-900 mb-4">비밀번호 초기화</h3>
             <div className="bg-amber-50 border border-amber-200 rounded-lg p-4 mb-4">
               <p className="text-sm text-amber-800">
-                <strong>⚠️ 주의:</strong> 비밀번호를 초기화하면 임시 비밀번호가 해당 사용자의 이메일로 발송됩니다.
+                <strong>⚠️ 주의:</strong> 비밀번호를 초기화하면 임시 비밀번호가 생성됩니다.
               </p>
             </div>
             <p className="text-sm text-gray-600 mb-4">
@@ -372,14 +403,76 @@ export default function AdminUsersPage() {
               </Button>
               <Button
                 className="bg-purple-500 hover:bg-purple-600 text-white"
-                onClick={async () => {
-                  await handleAction(showResetPasswordModal, 'resetPassword');
-                  setShowResetPasswordModal(null);
-                }}
+                onClick={() => handleAction(showResetPasswordModal, 'resetPassword')}
                 disabled={actionLoading === showResetPasswordModal}
               >
                 <KeyRound className="h-4 w-4 mr-1" />
-                초기화
+                {actionLoading === showResetPasswordModal ? '처리중...' : '초기화'}
+              </Button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* 비밀번호 초기화 결과 모달 */}
+      {passwordResetResult && (
+        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50">
+          <div className="bg-white rounded-xl p-6 w-full max-w-md mx-4">
+            <div className="flex items-center gap-3 mb-4">
+              <div className="flex h-10 w-10 items-center justify-center rounded-full bg-green-100">
+                <CheckCircle className="h-6 w-6 text-green-600" />
+              </div>
+              <h3 className="text-lg font-semibold text-gray-900">비밀번호 초기화 완료</h3>
+            </div>
+
+            <div className="space-y-3 mb-4">
+              <div className="bg-gray-50 rounded-lg p-3">
+                <p className="text-xs text-gray-500 mb-1">대상 사용자</p>
+                <p className="font-medium">{passwordResetResult.userName}</p>
+                <p className="text-sm text-gray-600">{passwordResetResult.userEmail}</p>
+              </div>
+
+              <div className="bg-purple-50 border-2 border-purple-200 rounded-lg p-4">
+                <p className="text-xs text-purple-600 mb-2 font-medium">임시 비밀번호</p>
+                <div className="flex items-center gap-2">
+                  <code className="flex-1 text-xl font-bold text-purple-700 tracking-wider font-mono">
+                    {passwordResetResult.temporaryPassword}
+                  </code>
+                  <Button
+                    size="sm"
+                    variant="outline"
+                    className={copied ? 'text-green-600 border-green-300' : 'text-purple-600 border-purple-300'}
+                    onClick={() => copyToClipboard(passwordResetResult.temporaryPassword)}
+                  >
+                    {copied ? <Check className="h-4 w-4" /> : <Copy className="h-4 w-4" />}
+                  </Button>
+                </div>
+              </div>
+
+              {passwordResetResult.emailSent ? (
+                <div className="bg-green-50 border border-green-200 rounded-lg p-3">
+                  <p className="text-sm text-green-700">
+                    ✅ 임시 비밀번호가 이메일로 발송되었습니다.
+                  </p>
+                </div>
+              ) : (
+                <div className="bg-amber-50 border border-amber-200 rounded-lg p-3">
+                  <p className="text-sm text-amber-700">
+                    ⚠️ 이메일 발송에 실패했습니다. 위의 임시 비밀번호를 직접 전달해주세요.
+                  </p>
+                </div>
+              )}
+            </div>
+
+            <div className="flex justify-end">
+              <Button
+                onClick={() => {
+                  setPasswordResetResult(null);
+                  setCopied(false);
+                  fetchUsers();
+                }}
+              >
+                확인
               </Button>
             </div>
           </div>
