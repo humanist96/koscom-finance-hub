@@ -1,9 +1,20 @@
 import { NextRequest, NextResponse } from 'next/server';
+import { getServerSession } from 'next-auth';
+import { authOptions } from '@/lib/auth';
 import prisma from '@/lib/prisma';
 
 // GET /api/contracts - 계약 목록 조회
 export async function GET(request: NextRequest) {
   try {
+    // 인증 확인
+    const session = await getServerSession(authOptions);
+    if (!session?.user) {
+      return NextResponse.json(
+        { success: false, error: '로그인이 필요합니다.' },
+        { status: 401 }
+      );
+    }
+
     const searchParams = request.nextUrl.searchParams;
 
     // 페이지네이션

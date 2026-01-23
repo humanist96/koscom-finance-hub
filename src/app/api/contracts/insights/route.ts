@@ -1,9 +1,20 @@
 import { NextResponse } from 'next/server';
+import { getServerSession } from 'next-auth';
+import { authOptions } from '@/lib/auth';
 import prisma from '@/lib/prisma';
 
 // GET /api/contracts/insights - 영업 인사이트 조회
 export async function GET() {
   try {
+    // 인증 확인
+    const session = await getServerSession(authOptions);
+    if (!session?.user) {
+      return NextResponse.json(
+        { success: false, error: '로그인이 필요합니다.' },
+        { status: 401 }
+      );
+    }
+
     // 전체 계약 데이터 가져오기
     const contracts = await prisma.customerContract.findMany({
       include: {
