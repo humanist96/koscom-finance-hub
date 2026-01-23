@@ -245,6 +245,74 @@ export async function sendReactivationEmail(userEmail: string, userName: string)
   return sendEmail({ to: userEmail, subject, html });
 }
 
+// 비밀번호 초기화 이메일
+export async function sendPasswordResetEmail(
+  userEmail: string,
+  userName: string,
+  temporaryPassword: string
+): Promise<boolean> {
+  const subject = '[KOSCOM 금융영업부 Hub] 비밀번호가 초기화되었습니다';
+
+  const html = `
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="utf-8">
+  <style>
+    body { font-family: 'Malgun Gothic', 'Apple SD Gothic Neo', sans-serif; line-height: 1.6; color: #333; }
+    .container { max-width: 600px; margin: 0 auto; padding: 20px; }
+    .header { background: linear-gradient(135deg, #7c3aed 0%, #a855f7 100%); color: white; padding: 30px; text-align: center; border-radius: 8px 8px 0 0; }
+    .header h1 { margin: 0; font-size: 24px; }
+    .content { background: #f8fafc; padding: 30px; border: 1px solid #e2e8f0; border-top: none; }
+    .button { display: inline-block; background: #7c3aed; color: white; padding: 14px 28px; text-decoration: none; border-radius: 6px; font-weight: bold; margin: 20px 0; }
+    .password-box { background: #fef3c7; border: 2px solid #f59e0b; border-radius: 6px; padding: 20px; margin: 20px 0; text-align: center; }
+    .password-box .password { font-size: 24px; font-weight: bold; color: #92400e; letter-spacing: 2px; font-family: monospace; }
+    .warning { background: #fef2f2; border: 1px solid #fecaca; border-radius: 6px; padding: 15px; margin: 15px 0; color: #991b1b; font-size: 14px; }
+    .footer { text-align: center; padding: 20px; color: #64748b; font-size: 12px; }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <div class="header">
+      <h1>KOSCOM 금융영업부 Hub</h1>
+    </div>
+    <div class="content">
+      <h2>안녕하세요, ${userName}님!</h2>
+      <p>관리자에 의해 비밀번호가 초기화되었습니다.</p>
+      <p>아래 임시 비밀번호로 로그인한 후 반드시 비밀번호를 변경해 주세요.</p>
+
+      <div class="password-box">
+        <p style="margin: 0 0 10px 0; color: #92400e;">임시 비밀번호</p>
+        <div class="password">${temporaryPassword}</div>
+      </div>
+
+      <div class="warning">
+        <strong>⚠️ 보안 안내</strong><br>
+        임시 비밀번호는 최초 로그인 시 반드시 변경해 주세요.<br>
+        본인이 요청하지 않은 경우 관리자에게 문의해 주세요.
+      </div>
+
+      <div style="text-align: center;">
+        <a href="${SERVICE_URL}/login" class="button">로그인하기</a>
+      </div>
+
+      <p style="color: #64748b; font-size: 14px;">
+        버튼이 작동하지 않으면 아래 링크를 브라우저에 복사하여 접속해주세요:<br>
+        <a href="${SERVICE_URL}/login">${SERVICE_URL}/login</a>
+      </p>
+    </div>
+    <div class="footer">
+      <p>본 메일은 발신전용입니다.</p>
+      <p>&copy; ${new Date().getFullYear()} KOSCOM 금융영업부. All rights reserved.</p>
+    </div>
+  </div>
+</body>
+</html>
+  `;
+
+  return sendEmail({ to: userEmail, subject, html });
+}
+
 // 신규 가입 신청 알림 (관리자에게)
 export async function sendNewRegistrationAlert(
   adminEmail: string,

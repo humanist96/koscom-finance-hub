@@ -1,5 +1,6 @@
 import { NextResponse } from 'next/server';
 import { getServerSession } from 'next-auth';
+import bcrypt from 'bcryptjs';
 import { authOptions } from '@/lib/auth';
 import { prisma } from '@/lib/prisma';
 import {
@@ -7,7 +8,18 @@ import {
   sendRejectionEmail,
   sendSuspensionEmail,
   sendReactivationEmail,
+  sendPasswordResetEmail,
 } from '@/lib/email';
+
+// 임시 비밀번호 생성 함수
+function generateTemporaryPassword(): string {
+  const chars = 'ABCDEFGHJKLMNPQRSTUVWXYZabcdefghjkmnpqrstuvwxyz23456789';
+  let password = '';
+  for (let i = 0; i < 10; i++) {
+    password += chars.charAt(Math.floor(Math.random() * chars.length));
+  }
+  return password;
+}
 
 // 사용자 목록 조회
 export async function GET(request: Request) {
@@ -142,6 +154,40 @@ export async function PATCH(request: Request) {
         };
         notificationMessage = '계정이 재활성화되었습니다.';
         break;
+
+      case 'resetPassword': {
+        // 비밀번호 초기화는 별도 처리
+        const temporaryPassword = generateTemporaryPassword();
+        const hashedPassword = await bcrypt.hash(temporaryPassword, 10);
+
+        await prisma.user.update({
+          where: { id: userId },
+          data: { password: hashedPassword },
+        });
+
+        // 알림 생성
+        await prisma.notification.create({
+          data: {
+            userId: userId,
+            type: 'SYSTEM',
+            title: '비밀번호 초기화',
+            message: '관리자에 의해 비밀번호가 초기화되었습니다. 이메일을 확인해주세요.',
+          },
+        });
+
+        // 이메일 발송
+        const userName = targetUser.name || targetUser.email;
+        try {
+          await sendPasswordResetEmail(targetUser.email, userName, temporaryPassword);
+        } catch (emailError) {
+          console.error('비밀번호 초기화 이메일 발송 실패:', emailError);
+        }
+
+        return NextResponse.json({
+          success: true,
+          message: '비밀번호가 초기화되었습니다. 임시 비밀번호가 이메일로 발송되었습니다.',
+        });
+      }
 
       default:
         return NextResponse.json(

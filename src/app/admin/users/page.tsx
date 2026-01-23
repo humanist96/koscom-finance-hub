@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from 'react';
 import { useSearchParams } from 'next/navigation';
-import { Check, X, RefreshCw, Search, Filter } from 'lucide-react';
+import { Check, X, RefreshCw, Search, Filter, KeyRound } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 
@@ -44,6 +44,7 @@ export default function AdminUsersPage() {
   const [actionLoading, setActionLoading] = useState<string | null>(null);
   const [rejectReason, setRejectReason] = useState('');
   const [showRejectModal, setShowRejectModal] = useState<string | null>(null);
+  const [showResetPasswordModal, setShowResetPasswordModal] = useState<string | null>(null);
 
   const fetchUsers = async () => {
     setLoading(true);
@@ -269,15 +270,27 @@ export default function AdminUsersPage() {
                           </>
                         )}
                         {user.status === 'APPROVED' && (
-                          <Button
-                            size="sm"
-                            variant="outline"
-                            className="text-gray-600"
-                            onClick={() => handleAction(user.id, 'suspend')}
-                            disabled={actionLoading === user.id}
-                          >
-                            정지
-                          </Button>
+                          <>
+                            <Button
+                              size="sm"
+                              variant="outline"
+                              className="text-purple-600 border-purple-200 hover:bg-purple-50"
+                              onClick={() => setShowResetPasswordModal(user.id)}
+                              disabled={actionLoading === user.id}
+                            >
+                              <KeyRound className="h-4 w-4 mr-1" />
+                              PW초기화
+                            </Button>
+                            <Button
+                              size="sm"
+                              variant="outline"
+                              className="text-gray-600"
+                              onClick={() => handleAction(user.id, 'suspend')}
+                              disabled={actionLoading === user.id}
+                            >
+                              정지
+                            </Button>
+                          </>
                         )}
                         {(user.status === 'SUSPENDED' || user.status === 'REJECTED') && (
                           <Button
@@ -331,6 +344,42 @@ export default function AdminUsersPage() {
                 disabled={actionLoading === showRejectModal}
               >
                 거절하기
+              </Button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* 비밀번호 초기화 모달 */}
+      {showResetPasswordModal && (
+        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50">
+          <div className="bg-white rounded-xl p-6 w-full max-w-md mx-4">
+            <h3 className="text-lg font-semibold text-gray-900 mb-4">비밀번호 초기화</h3>
+            <div className="bg-amber-50 border border-amber-200 rounded-lg p-4 mb-4">
+              <p className="text-sm text-amber-800">
+                <strong>⚠️ 주의:</strong> 비밀번호를 초기화하면 임시 비밀번호가 해당 사용자의 이메일로 발송됩니다.
+              </p>
+            </div>
+            <p className="text-sm text-gray-600 mb-4">
+              선택한 사용자의 비밀번호를 초기화하시겠습니까?
+            </p>
+            <div className="flex justify-end gap-3 mt-4">
+              <Button
+                variant="outline"
+                onClick={() => setShowResetPasswordModal(null)}
+              >
+                취소
+              </Button>
+              <Button
+                className="bg-purple-500 hover:bg-purple-600 text-white"
+                onClick={async () => {
+                  await handleAction(showResetPasswordModal, 'resetPassword');
+                  setShowResetPasswordModal(null);
+                }}
+                disabled={actionLoading === showResetPasswordModal}
+              >
+                <KeyRound className="h-4 w-4 mr-1" />
+                초기화
               </Button>
             </div>
           </div>
