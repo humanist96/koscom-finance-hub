@@ -45,6 +45,7 @@ export const config = {
     '/admin/:path*',
     '/api/alerts/:path*',
     '/api/reports/:path*',
+    '/api/contracts/:path*',
     '/api/admin/:path*',
   ],
 };

@@ -66,20 +66,24 @@ export function Header() {
           >
             증권사
           </Link>
-          <Link
-            href="/dashboard/contracts"
-            className="flex items-center gap-1 text-sm font-medium text-green-600 transition-colors hover:text-green-700"
-          >
-            <BarChart3 className="h-4 w-4" />
-            계약현황
-          </Link>
-          <Link
-            href="/dashboard/reports"
-            className="flex items-center gap-1 text-sm font-medium text-blue-600 transition-colors hover:text-blue-700"
-          >
-            <FileText className="h-4 w-4" />
-            주간리포트
-          </Link>
+          {isLoggedIn && (
+            <>
+              <Link
+                href="/dashboard/contracts"
+                className="flex items-center gap-1 text-sm font-medium text-green-600 transition-colors hover:text-green-700"
+              >
+                <BarChart3 className="h-4 w-4" />
+                계약현황
+              </Link>
+              <Link
+                href="/dashboard/reports"
+                className="flex items-center gap-1 text-sm font-medium text-blue-600 transition-colors hover:text-blue-700"
+              >
+                <FileText className="h-4 w-4" />
+                주간리포트
+              </Link>
+            </>
+          )}
         </nav>
 
         {/* Search & Mobile Menu */}
@@ -293,22 +297,26 @@ export function Header() {
                 >
                   증권사
                 </Link>
-                <Link
-                  href="/dashboard/contracts"
-                  className="flex items-center gap-2 text-lg font-medium text-green-600"
-                  onClick={() => setMobileMenuOpen(false)}
-                >
-                  <BarChart3 className="h-5 w-5" />
-                  계약현황
-                </Link>
-                <Link
-                  href="/dashboard/reports"
-                  className="flex items-center gap-2 text-lg font-medium text-blue-600"
-                  onClick={() => setMobileMenuOpen(false)}
-                >
-                  <FileText className="h-5 w-5" />
-                  주간리포트
-                </Link>
+                {isLoggedIn && (
+                  <>
+                    <Link
+                      href="/dashboard/contracts"
+                      className="flex items-center gap-2 text-lg font-medium text-green-600"
+                      onClick={() => setMobileMenuOpen(false)}
+                    >
+                      <BarChart3 className="h-5 w-5" />
+                      계약현황
+                    </Link>
+                    <Link
+                      href="/dashboard/reports"
+                      className="flex items-center gap-2 text-lg font-medium text-blue-600"
+                      onClick={() => setMobileMenuOpen(false)}
+                    >
+                      <FileText className="h-5 w-5" />
+                      주간리포트
+                    </Link>
+                  </>
+                )}
                 {isLoggedIn ? (
                   <>
                     <Link
