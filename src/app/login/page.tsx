@@ -3,16 +3,16 @@
 import { useState } from 'react';
 import { useRouter } from 'next/navigation';
 import Link from 'next/link';
-import { Building2, ArrowRight } from 'lucide-react';
+import { signIn } from 'next-auth/react';
+import { Building2, ArrowRight, Eye, EyeOff } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
-import { useAuthStore } from '@/store/auth-store';
 
 export default function LoginPage() {
   const router = useRouter();
-  const { login } = useAuthStore();
-  const [name, setName] = useState('');
   const [email, setEmail] = useState('');
+  const [password, setPassword] = useState('');
+  const [showPassword, setShowPassword] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState('');
 
@@ -20,46 +20,46 @@ export default function LoginPage() {
     e.preventDefault();
     setError('');
 
-    if (!name.trim()) {
-      setError('이름을 입력해주세요.');
+    if (!email.trim() || !email.includes('@')) {
+      setError('올바른 이메일을 입력해주세요.');
       return;
     }
 
-    if (!email.trim() || !email.includes('@')) {
-      setError('올바른 이메일을 입력해주세요.');
+    if (!password) {
+      setError('비밀번호를 입력해주세요.');
       return;
     }
 
     setIsLoading(true);
 
     try {
-      // 서버에 사용자 등록/조회
-      const res = await fetch('/api/auth/login', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ name: name.trim(), email: email.trim() }),
+      const result = await signIn('credentials', {
+        email: email.trim(),
+        password,
+        redirect: false,
       });
 
-      const data = await res.json();
-
-      if (!res.ok) {
-        throw new Error(data.error || '로그인에 실패했습니다.');
+      if (result?.error) {
+        // 상태별 에러 메시지 처리
+        if (result.error.startsWith('PENDING:')) {
+          router.push('/pending');
+          return;
+        }
+        if (result.error.startsWith('REJECTED:')) {
+          setError('가입이 거절되었습니다. 관리자에게 문의하세요.');
+          return;
+        }
+        if (result.error.startsWith('SUSPENDED:')) {
+          setError('계정이 정지되었습니다. 관리자에게 문의하세요.');
+          return;
+        }
+        setError(result.error);
+        return;
       }
 
-      // 로그인 상태 저장
-      login({
-        id: data.user.id,
-        name: data.user.name,
-        email: data.user.email,
-        assignedCompanyIds: data.user.assignedCompanyIds || [],
-      });
-
-      // 담당 증권사가 없으면 설정 페이지로, 있으면 대시보드로
-      if (!data.user.assignedCompanyIds?.length) {
-        router.push('/dashboard/settings');
-      } else {
-        router.push('/dashboard');
-      }
+      // 로그인 성공
+      router.push('/dashboard');
+      router.refresh();
     } catch (err) {
       setError(err instanceof Error ? err.message : '오류가 발생했습니다.');
     } finally {
@@ -90,24 +90,10 @@ export default function LoginPage() {
         <div className="rounded-2xl border border-white/10 bg-white/5 p-8 backdrop-blur-xl">
           <h1 className="mb-2 text-center text-2xl font-bold text-white">로그인</h1>
           <p className="mb-6 text-center text-sm text-gray-400">
-            영업대표 정보를 입력해주세요
+            이메일과 비밀번호를 입력해주세요
           </p>
 
           <form onSubmit={handleSubmit} className="space-y-4">
-            <div>
-              <label htmlFor="name" className="mb-1.5 block text-sm font-medium text-gray-300">
-                이름
-              </label>
-              <Input
-                id="name"
-                type="text"
-                placeholder="홍길동"
-                value={name}
-                onChange={(e) => setName(e.target.value)}
-                className="border-white/10 bg-white/5 text-white placeholder:text-gray-500 focus:border-blue-500"
-              />
-            </div>
-
             <div>
               <label htmlFor="email" className="mb-1.5 block text-sm font-medium text-gray-300">
                 이메일
@@ -120,6 +106,29 @@ export default function LoginPage() {
                 onChange={(e) => setEmail(e.target.value)}
                 className="border-white/10 bg-white/5 text-white placeholder:text-gray-500 focus:border-blue-500"
               />
+            </div>
+
+            <div>
+              <label htmlFor="password" className="mb-1.5 block text-sm font-medium text-gray-300">
+                비밀번호
+              </label>
+              <div className="relative">
+                <Input
+                  id="password"
+                  type={showPassword ? 'text' : 'password'}
+                  placeholder="비밀번호를 입력하세요"
+                  value={password}
+                  onChange={(e) => setPassword(e.target.value)}
+                  className="border-white/10 bg-white/5 pr-10 text-white placeholder:text-gray-500 focus:border-blue-500"
+                />
+                <button
+                  type="button"
+                  onClick={() => setShowPassword(!showPassword)}
+                  className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 hover:text-white"
+                >
+                  {showPassword ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
+                </button>
+              </div>
             </div>
 
             {error && (
@@ -136,9 +145,14 @@ export default function LoginPage() {
             </Button>
           </form>
 
-          <p className="mt-6 text-center text-xs text-gray-500">
-            처음 방문하신 분은 자동으로 계정이 생성됩니다.
-          </p>
+          <div className="mt-6 text-center">
+            <p className="text-sm text-gray-400">
+              계정이 없으신가요?{' '}
+              <Link href="/register" className="text-blue-400 hover:text-blue-300">
+                회원가입
+              </Link>
+            </p>
+          </div>
         </div>
 
         {/* Back Link */}

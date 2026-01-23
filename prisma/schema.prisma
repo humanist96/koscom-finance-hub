@@ -109,21 +109,95 @@ model NewsKeyword {
   @@map("news_keywords")
 }
 
+// 사용자 역할
+enum UserRole {
+  USER
+  ADMIN
+  SUPER_ADMIN
+}
+
+// 사용자 상태
+enum UserStatus {
+  PENDING    // 승인 대기
+  APPROVED   // 승인됨
+  REJECTED   // 거절됨
+  SUSPENDED  // 정지됨
+}
+
 // 사용자 (코스콤 직원)
 model User {
   id        String   @id @default(cuid())
   email     String   @unique
+  password  String?  // 해시된 비밀번호 (bcrypt)
   name      String?
-  role      String   @default("USER") // USER, ADMIN
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
+  role      UserRole @default(USER)
+
+  // 승인 관련 필드
+  status        UserStatus @default(PENDING)
+  approvedAt    DateTime?
+  approvedBy    String?
+  rejectedAt    DateTime?
+  rejectReason  String?
+
+  // 부서/직책 정보
+  department    String?
+  position      String?
+  employeeId    String?
+
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+  lastLoginAt   DateTime?
 
   favorites      UserFavorite[]
   alerts         KeywordAlert[]
   notifications  Notification[]
   companyAlerts  CompanyAlert[]
+  accounts       Account[]
+  sessions       Session[]
 
   @@map("users")
+}
+
+// NextAuth Account 모델
+model Account {
+  id                String  @id @default(cuid())
+  userId            String
+  type              String
+  provider          String
+  providerAccountId String
+  refresh_token     String?
+  access_token      String?
+  expires_at        Int?
+  token_type        String?
+  scope             String?
+  id_token          String?
+  session_state     String?
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([provider, providerAccountId])
+  @@map("accounts")
+}
+
+// NextAuth Session 모델
+model Session {
+  id           String   @id @default(cuid())
+  sessionToken String   @unique
+  userId       String
+  expires      DateTime
+  user         User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@map("sessions")
+}
+
+// NextAuth VerificationToken 모델
+model VerificationToken {
+  identifier String
+  token      String   @unique
+  expires    DateTime
+
+  @@unique([identifier, token])
+  @@map("verification_tokens")
 }
 
 // 관심 증권사 (즐겨찾기)
