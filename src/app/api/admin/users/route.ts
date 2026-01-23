@@ -2,6 +2,12 @@ import { NextResponse } from 'next/server';
 import { getServerSession } from 'next-auth';
 import { authOptions } from '@/lib/auth';
 import { prisma } from '@/lib/prisma';
+import {
+  sendApprovalEmail,
+  sendRejectionEmail,
+  sendSuspensionEmail,
+  sendReactivationEmail,
+} from '@/lib/email';
 
 // 사용자 목록 조회
 export async function GET(request: Request) {
@@ -166,6 +172,28 @@ export async function PATCH(request: Request) {
         message: notificationMessage,
       },
     });
+
+    // 이메일 발송 (비동기, 실패해도 응답에 영향 없음)
+    const userName = targetUser.name || targetUser.email;
+    try {
+      switch (action) {
+        case 'approve':
+          await sendApprovalEmail(targetUser.email, userName);
+          break;
+        case 'reject':
+          await sendRejectionEmail(targetUser.email, userName, rejectReason);
+          break;
+        case 'suspend':
+          await sendSuspensionEmail(targetUser.email, userName);
+          break;
+        case 'reactivate':
+          await sendReactivationEmail(targetUser.email, userName);
+          break;
+      }
+    } catch (emailError) {
+      console.error('이메일 발송 실패:', emailError);
+      // 이메일 실패해도 사용자 상태 변경은 성공으로 처리
+    }
 
     return NextResponse.json({
       success: true,
