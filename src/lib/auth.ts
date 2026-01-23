@@ -55,22 +55,39 @@ export const authOptions: NextAuthOptions = {
           data: { lastLoginAt: new Date() },
         });
 
+        // 담당 증권사 목록 조회
+        const favorites = await prisma.userFavorite.findMany({
+          where: { userId: user.id },
+          select: { companyId: true },
+        });
+        const assignedCompanyIds = favorites.map(f => f.companyId);
+
         return {
           id: user.id,
           email: user.email,
           name: user.name,
           role: user.role,
           status: user.status,
+          assignedCompanyIds,
         };
       },
     }),
   ],
   callbacks: {
-    async jwt({ token, user }) {
+    async jwt({ token, user, trigger }) {
       if (user) {
         token.id = user.id;
         token.role = user.role;
         token.status = user.status;
+        token.assignedCompanyIds = user.assignedCompanyIds || [];
+      }
+      // 세션 업데이트 시 담당 증권사 목록 새로고침
+      if (trigger === 'update') {
+        const favorites = await prisma.userFavorite.findMany({
+          where: { userId: token.id as string },
+          select: { companyId: true },
+        });
+        token.assignedCompanyIds = favorites.map(f => f.companyId);
       }
       return token;
     },
@@ -79,6 +96,7 @@ export const authOptions: NextAuthOptions = {
         session.user.id = token.id as string;
         session.user.role = token.role as string;
         session.user.status = token.status as string;
+        session.user.assignedCompanyIds = token.assignedCompanyIds as string[];
       }
       return session;
     },

@@ -2,7 +2,7 @@
 
 import { useNews } from '@/hooks/use-news';
 import { useFilterStore } from '@/stores/filter-store';
-import { useAuthStore } from '@/store/auth-store';
+import { useSession } from 'next-auth/react';
 import { NewsCard } from './news-card';
 import { Skeleton } from '@/components/ui/skeleton';
 import { Button } from '@/components/ui/button';
@@ -18,7 +18,8 @@ export function NewsList() {
     searchKeyword,
   } = useFilterStore();
 
-  const { user } = useAuthStore();
+  const { data: session } = useSession();
+  const user = session?.user;
 
   // 담당 증권사가 설정되어 있으면 해당 증권사만 필터링
   // 필터에서 직접 선택한 경우 해당 선택 우선

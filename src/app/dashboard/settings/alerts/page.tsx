@@ -17,7 +17,7 @@ import {
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
-import { useAuthStore } from '@/store/auth-store';
+import { useSession } from 'next-auth/react';
 import { useCompanies } from '@/hooks/use-companies';
 import {
   useAlertSettings,
@@ -30,9 +30,12 @@ import {
 
 export default function AlertSettingsPage() {
   const router = useRouter();
-  const { user, isLoggedIn } = useAuthStore();
+  const { data: session, status } = useSession();
   const [newKeyword, setNewKeyword] = useState('');
   const [selectedCompanyId, setSelectedCompanyId] = useState('');
+
+  const isLoggedIn = status === 'authenticated' && !!session?.user;
+  const user = session?.user;
 
   const { data: settingsData, isLoading } = useAlertSettings(isLoggedIn ? user?.id ?? null : null);
   const { data: companiesData } = useCompanies({ withStats: false });

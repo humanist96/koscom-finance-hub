@@ -4,13 +4,16 @@ import { useState, useRef, useEffect } from 'react';
 import { Bell } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { useUnreadCount } from '@/hooks/use-alerts';
-import { useAuthStore } from '@/store/auth-store';
+import { useSession } from 'next-auth/react';
 import { AlertDropdown } from './AlertDropdown';
 
 export function AlertBell() {
   const [isOpen, setIsOpen] = useState(false);
   const dropdownRef = useRef<HTMLDivElement>(null);
-  const { user, isLoggedIn } = useAuthStore();
+  const { data: session, status } = useSession();
+
+  const isLoggedIn = status === 'authenticated' && !!session?.user;
+  const user = session?.user;
 
   const { data: unreadData } = useUnreadCount(isLoggedIn ? user?.id ?? null : null);
   const unreadCount = unreadData?.data?.count ?? 0;

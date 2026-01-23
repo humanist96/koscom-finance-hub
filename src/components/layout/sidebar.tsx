@@ -2,7 +2,7 @@
 
 import { useCompanies } from '@/hooks/use-companies';
 import { useFilterStore } from '@/stores/filter-store';
-import { useAuthStore } from '@/store/auth-store';
+import { useSession } from 'next-auth/react';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { ScrollArea } from '@/components/ui/scroll-area';
@@ -48,7 +48,9 @@ function CheckboxItem({
 
 export function Sidebar() {
   const { data: companiesData, isLoading } = useCompanies({ withStats: true });
-  const { user, isLoggedIn } = useAuthStore();
+  const { data: session, status } = useSession();
+  const isLoggedIn = status === 'authenticated' && !!session?.user;
+  const user = session?.user;
   const {
     selectedCompanyIds,
     selectedCategories,

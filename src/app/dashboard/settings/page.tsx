@@ -6,7 +6,7 @@ import { useQuery, useMutation } from '@tanstack/react-query';
 import { Check, Save, LogOut, Building2 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
-import { useAuthStore } from '@/store/auth-store';
+import { useSession, signOut } from 'next-auth/react';
 
 interface Company {
   id: string;
@@ -32,8 +32,11 @@ async function saveAssignedCompanies(userId: string, companyIds: string[]): Prom
 
 export default function SettingsPage() {
   const router = useRouter();
-  const { user, isLoggedIn, updateAssignedCompanies, logout } = useAuthStore();
+  const { data: session, status, update } = useSession();
   const [selectedCompanyIds, setSelectedCompanyIds] = useState<string[]>([]);
+
+  const isLoggedIn = status === 'authenticated' && !!session?.user;
+  const user = session?.user;
 
   const { data: companies, isLoading } = useQuery({
     queryKey: ['companies'],
@@ -42,23 +45,25 @@ export default function SettingsPage() {
 
   const mutation = useMutation({
     mutationFn: () => saveAssignedCompanies(user!.id, selectedCompanyIds),
-    onSuccess: () => {
-      updateAssignedCompanies(selectedCompanyIds);
+    onSuccess: async () => {
+      // 세션 업데이트하여 assignedCompanyIds 새로고침
+      await update();
       router.push('/dashboard');
     },
   });
 
   useEffect(() => {
-    if (!isLoggedIn) {
+    if (status === 'unauthenticated') {
       router.push('/login');
     }
-  }, [isLoggedIn, router]);
+  }, [status, router]);
 
+  // 초기 선택 상태 설정 (기존 담당 증권사)
   useEffect(() => {
     if (user?.assignedCompanyIds) {
       setSelectedCompanyIds(user.assignedCompanyIds);
     }
-  }, [user]);
+  }, [user?.assignedCompanyIds]);
 
   const toggleCompany = (companyId: string) => {
     setSelectedCompanyIds((prev) =>
@@ -78,10 +83,17 @@ export default function SettingsPage() {
     setSelectedCompanyIds([]);
   };
 
-  const handleLogout = () => {
-    logout();
-    router.push('/');
+  const handleLogout = async () => {
+    await signOut({ callbackUrl: '/' });
   };
+
+  if (status === 'loading') {
+    return (
+      <div className="container mx-auto max-w-4xl px-4 py-8">
+        <div className="text-center text-gray-500">로딩 중...</div>
+      </div>
+    );
+  }
 
   if (!isLoggedIn || !user) {
     return null;

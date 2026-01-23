@@ -9,6 +9,7 @@ declare module 'next-auth' {
       name: string | null;
       role: string;
       status: string;
+      assignedCompanyIds: string[];
     };
   }
 
@@ -18,6 +19,7 @@ declare module 'next-auth' {
     name: string | null;
     role: UserRole;
     status: UserStatus;
+    assignedCompanyIds?: string[];
   }
 }
 
@@ -26,5 +28,6 @@ declare module 'next-auth/jwt' {
     id: string;
     role: string;
     status: string;
+    assignedCompanyIds: string[];
   }
 }
