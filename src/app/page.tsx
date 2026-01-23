@@ -3,8 +3,9 @@
 import { useState, useEffect } from 'react';
 import Link from 'next/link';
 import dynamic from 'next/dynamic';
-import { ArrowRight, BarChart3, Bell, Building2, Newspaper, Users, Zap, Shield, Clock } from 'lucide-react';
+import { ArrowRight, BarChart3, Bell, Building2, Newspaper, Users, Zap, Shield, Clock, LogIn } from 'lucide-react';
 import { Button } from '@/components/ui/button';
+import { useSession } from 'next-auth/react';
 
 // 3D 컴포넌트는 클라이언트 사이드에서만 렌더링
 const FloatingParticles = dynamic(
@@ -79,6 +80,8 @@ function AnimatedCounter({ value, suffix }: { value: string; suffix: string }) {
 
 export default function LandingPage() {
   const [isLoaded, setIsLoaded] = useState(false);
+  const { data: session, status } = useSession();
+  const isLoggedIn = status === 'authenticated' && !!session?.user;
 
   useEffect(() => {
     setIsLoaded(true);
@@ -106,16 +109,27 @@ export default function LandingPage() {
             </div>
           </div>
           <div className="flex items-center gap-4">
-            <Link href="/dashboard">
-              <Button variant="ghost" className="text-gray-300 hover:bg-white/10 hover:text-white">
-                대시보드
-              </Button>
-            </Link>
-            <Link href="/dashboard">
-              <Button className="bg-gradient-to-r from-blue-500 to-cyan-500 text-white shadow-lg shadow-blue-500/25 hover:from-blue-600 hover:to-cyan-600">
-                시작하기
-              </Button>
-            </Link>
+            {isLoggedIn ? (
+              <Link href="/dashboard">
+                <Button className="bg-gradient-to-r from-blue-500 to-cyan-500 text-white shadow-lg shadow-blue-500/25 hover:from-blue-600 hover:to-cyan-600">
+                  대시보드
+                </Button>
+              </Link>
+            ) : (
+              <>
+                <Link href="/login">
+                  <Button variant="ghost" className="text-gray-300 hover:bg-white/10 hover:text-white">
+                    <LogIn className="mr-2 h-4 w-4" />
+                    로그인
+                  </Button>
+                </Link>
+                <Link href="/register">
+                  <Button className="bg-gradient-to-r from-blue-500 to-cyan-500 text-white shadow-lg shadow-blue-500/25 hover:from-blue-600 hover:to-cyan-600">
+                    회원가입
+                  </Button>
+                </Link>
+              </>
+            )}
           </div>
         </div>
       </nav>
@@ -153,23 +167,39 @@ export default function LandingPage() {
 
           {/* CTA Buttons */}
           <div className="flex flex-col items-center justify-center gap-4 sm:flex-row">
-            <Link href="/dashboard">
-              <Button
-                size="lg"
-                className="group h-14 bg-gradient-to-r from-blue-500 to-cyan-500 px-8 text-lg font-semibold text-white shadow-xl shadow-blue-500/30 transition-all hover:from-blue-600 hover:to-cyan-600 hover:shadow-blue-500/40"
-              >
-                대시보드 바로가기
-                <ArrowRight className="ml-2 h-5 w-5 transition-transform group-hover:translate-x-1" />
-              </Button>
-            </Link>
-            <Button
-              size="lg"
-              variant="outline"
-              className="h-14 border-white/20 bg-white/5 px-8 text-lg text-white backdrop-blur-sm hover:bg-white/10"
-            >
-              <Shield className="mr-2 h-5 w-5" />
-              기능 소개
-            </Button>
+            {isLoggedIn ? (
+              <Link href="/dashboard">
+                <Button
+                  size="lg"
+                  className="group h-14 bg-gradient-to-r from-blue-500 to-cyan-500 px-8 text-lg font-semibold text-white shadow-xl shadow-blue-500/30 transition-all hover:from-blue-600 hover:to-cyan-600 hover:shadow-blue-500/40"
+                >
+                  대시보드 바로가기
+                  <ArrowRight className="ml-2 h-5 w-5 transition-transform group-hover:translate-x-1" />
+                </Button>
+              </Link>
+            ) : (
+              <>
+                <Link href="/register">
+                  <Button
+                    size="lg"
+                    className="group h-14 bg-gradient-to-r from-blue-500 to-cyan-500 px-8 text-lg font-semibold text-white shadow-xl shadow-blue-500/30 transition-all hover:from-blue-600 hover:to-cyan-600 hover:shadow-blue-500/40"
+                  >
+                    무료로 시작하기
+                    <ArrowRight className="ml-2 h-5 w-5 transition-transform group-hover:translate-x-1" />
+                  </Button>
+                </Link>
+                <Link href="/login">
+                  <Button
+                    size="lg"
+                    variant="outline"
+                    className="h-14 border-white/20 bg-white/5 px-8 text-lg text-white backdrop-blur-sm hover:bg-white/10"
+                  >
+                    <LogIn className="mr-2 h-5 w-5" />
+                    로그인
+                  </Button>
+                </Link>
+              </>
+            )}
           </div>
         </div>
 
@@ -248,12 +278,12 @@ export default function LandingPage() {
               <br />
               금융영업부 Hub와 함께 스마트한 영업을 시작하세요.
             </p>
-            <Link href="/dashboard">
+            <Link href={isLoggedIn ? "/dashboard" : "/register"}>
               <Button
                 size="lg"
                 className="h-14 bg-gradient-to-r from-blue-500 to-cyan-500 px-10 text-lg font-semibold text-white shadow-xl shadow-blue-500/30 hover:from-blue-600 hover:to-cyan-600"
               >
-                무료로 시작하기
+                {isLoggedIn ? '대시보드 가기' : '무료로 시작하기'}
                 <ArrowRight className="ml-2 h-5 w-5" />
               </Button>
             </Link>
