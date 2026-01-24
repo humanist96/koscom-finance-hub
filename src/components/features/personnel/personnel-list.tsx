@@ -1,10 +1,13 @@
 'use client';
 
 import { usePersonnel } from '@/hooks/use-personnel';
-import { PersonnelItem } from './personnel-item';
 import { Skeleton } from '@/components/ui/skeleton';
 import { Button } from '@/components/ui/button';
-import { AlertCircle, RefreshCw } from 'lucide-react';
+import { Badge } from '@/components/ui/badge';
+import { AlertCircle, RefreshCw, ExternalLink, Building2, Calendar } from 'lucide-react';
+import { formatDistanceToNow } from 'date-fns';
+import { ko } from 'date-fns/locale';
+import Link from 'next/link';
 
 interface PersonnelListProps {
   companyIds?: string[];
@@ -12,14 +15,27 @@ interface PersonnelListProps {
   dateRange?: string;
 }
 
+interface PersonnelNewsItem {
+  id: string;
+  title: string;
+  summary: string | null;
+  sourceUrl: string;
+  sourceName: string | null;
+  publishedAt: string;
+  company: {
+    id: string;
+    name: string;
+    code: string;
+    logoUrl: string | null;
+  };
+}
+
 export function PersonnelList({
   companyIds,
-  changeTypes,
   dateRange = '1month',
 }: PersonnelListProps) {
   const { data, isLoading, isError, refetch } = usePersonnel({
     companyIds,
-    changeTypes,
     startDate: dateRange,
     limit: 50,
   });
@@ -29,14 +45,12 @@ export function PersonnelList({
       <div className="space-y-4">
         {Array.from({ length: 5 }).map((_, i) => (
           <div key={i} className="rounded-lg border p-4">
-            <div className="flex gap-4">
-              <Skeleton className="h-10 w-10 rounded-full" />
-              <div className="flex-1">
-                <Skeleton className="mb-2 h-5 w-48" />
-                <Skeleton className="mb-1 h-4 w-32" />
-                <Skeleton className="h-3 w-24" />
-              </div>
+            <div className="mb-2 flex items-center gap-2">
+              <Skeleton className="h-5 w-20" />
+              <Skeleton className="h-5 w-16" />
             </div>
+            <Skeleton className="mb-2 h-6 w-full" />
+            <Skeleton className="h-4 w-3/4" />
           </div>
         ))}
       </div>
@@ -56,7 +70,7 @@ export function PersonnelList({
     );
   }
 
-  const personnel = data?.data?.items || [];
+  const personnel = (data?.data?.items || []) as unknown as PersonnelNewsItem[];
 
   if (personnel.length === 0) {
     return (
@@ -73,26 +87,76 @@ export function PersonnelList({
     <div className="space-y-4">
       <div className="flex items-center justify-between">
         <p className="text-sm text-gray-500">
-          총 <strong>{data?.data?.pagination.total || 0}</strong>개의 인사 정보
+          총 <strong>{data?.data?.pagination.total || 0}</strong>개의 인사 뉴스
         </p>
         <Button variant="ghost" size="sm" onClick={() => refetch()}>
           <RefreshCw className="mr-1 h-3 w-3" />
           새로고침
         </Button>
       </div>
-      {personnel.map(item => (
-        <PersonnelItem
-          key={item.id}
-          personName={item.personName}
-          position={item.position}
-          department={item.department}
-          changeType={item.changeType}
-          previousPosition={item.previousPosition}
-          announcedAt={item.announcedAt}
-          effectiveDate={item.effectiveDate}
-          company={item.company}
-        />
-      ))}
+
+      <div className="space-y-3">
+        {personnel.map(item => (
+          <article
+            key={item.id}
+            className="group rounded-lg border bg-white p-4 transition-all hover:border-purple-200 hover:shadow-md"
+          >
+            {/* Header */}
+            <div className="mb-2 flex items-center gap-2 text-sm">
+              <Link
+                href={`/dashboard/companies/${item.company.id}`}
+                className="flex items-center gap-1 font-medium text-purple-600 hover:underline"
+              >
+                <Building2 className="h-4 w-4" />
+                {item.company.name}
+              </Link>
+              <Badge variant="secondary" className="bg-purple-100 text-purple-700">
+                인사
+              </Badge>
+              <span className="flex items-center gap-1 text-gray-400">
+                <Calendar className="h-3 w-3" />
+                {formatDistanceToNow(new Date(item.publishedAt), {
+                  addSuffix: true,
+                  locale: ko,
+                })}
+              </span>
+            </div>
+
+            {/* Title */}
+            <h3 className="mb-2 font-semibold text-gray-900 group-hover:text-purple-700">
+              <a
+                href={item.sourceUrl}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="hover:underline"
+              >
+                {item.title}
+              </a>
+            </h3>
+
+            {/* Summary */}
+            {item.summary && (
+              <p className="mb-3 text-sm text-gray-600 line-clamp-2">
+                {item.summary}
+              </p>
+            )}
+
+            {/* Footer */}
+            <div className="flex items-center justify-between text-xs text-gray-400">
+              <span>{item.sourceName || '뉴스'}</span>
+              <a
+                href={item.sourceUrl}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="flex items-center gap-1 text-purple-500 hover:text-purple-700"
+              >
+                원문 보기
+                <ExternalLink className="h-3 w-3" />
+              </a>
+            </div>
+          </article>
+        ))}
+      </div>
     </div>
   );
 }

@@ -2,7 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import prisma from '@/lib/prisma';
 import { subDays, startOfDay } from 'date-fns';
 
-// GET /api/personnel - 인사 정보 목록 조회
+// GET /api/personnel - 인사 뉴스 목록 조회
 export async function GET(request: NextRequest) {
   try {
     const searchParams = request.nextUrl.searchParams;
@@ -14,9 +14,8 @@ export async function GET(request: NextRequest) {
 
     // 필터 파라미터
     const companyIds = searchParams.get('companyIds')?.split(',').filter(Boolean) || [];
-    const changeTypes = searchParams.get('changeTypes')?.split(',').filter(Boolean) || [];
     const keyword = searchParams.get('keyword');
-    const dateRange = searchParams.get('dateRange') || '1month';
+    const dateRange = searchParams.get('dateRange') || searchParams.get('startDate') || '1month';
 
     // 날짜 범위 계산
     let startDate: Date | undefined;
@@ -37,36 +36,34 @@ export async function GET(request: NextRequest) {
         startDate = undefined;
     }
 
-    // where 조건 구성
-    const where: Record<string, unknown> = {};
+    // where 조건 구성 - News 테이블에서 인사 뉴스만 조회
+    const where: Record<string, unknown> = {
+      isPersonnel: true,
+    };
 
     if (companyIds.length > 0) {
       where.companyId = { in: companyIds };
     }
 
-    if (changeTypes.length > 0) {
-      where.changeType = { in: changeTypes };
-    }
-
     if (startDate) {
-      where.announcedAt = { gte: startDate };
+      where.publishedAt = { gte: startDate };
     }
 
     if (keyword) {
       where.OR = [
-        { personName: { contains: keyword } },
-        { position: { contains: keyword } },
-        { department: { contains: keyword } },
+        { title: { contains: keyword, mode: 'insensitive' } },
+        { content: { contains: keyword, mode: 'insensitive' } },
+        { summary: { contains: keyword, mode: 'insensitive' } },
       ];
     }
 
-    // 쿼리 실행
-    const [personnel, total] = await Promise.all([
-      prisma.personnelChange.findMany({
+    // 쿼리 실행 - News 테이블에서 isPersonnel=true인 항목 조회
+    const [personnelNews, total] = await Promise.all([
+      prisma.news.findMany({
         where,
         skip,
         take: limit,
-        orderBy: { announcedAt: 'desc' },
+        orderBy: { publishedAt: 'desc' },
         include: {
           company: {
             select: {
@@ -78,7 +75,7 @@ export async function GET(request: NextRequest) {
           },
         },
       }),
-      prisma.personnelChange.count({ where }),
+      prisma.news.count({ where }),
     ]);
 
     const totalPages = Math.ceil(total / limit);
@@ -86,7 +83,7 @@ export async function GET(request: NextRequest) {
     return NextResponse.json({
       success: true,
       data: {
-        items: personnel,
+        items: personnelNews,
         pagination: {
           page,
           limit,
