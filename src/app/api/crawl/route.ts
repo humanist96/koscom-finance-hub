@@ -27,10 +27,12 @@ export async function POST(request: Request) {
     const authHeader = request.headers.get('authorization');
     const cronSecret = process.env.CRON_SECRET;
 
-    // CRON_SECRET이 설정된 경우 인증 확인
+    // CRON_SECRET이 설정된 경우 인증 강제
     if (cronSecret && authHeader !== `Bearer ${cronSecret}`) {
-      // 인증 실패해도 일단 실행 허용 (개발 편의성)
-      console.log('Warning: CRON_SECRET mismatch, but allowing execution');
+      return NextResponse.json(
+        { error: 'Unauthorized: Invalid or missing CRON_SECRET' },
+        { status: 401 }
+      );
     }
 
     const { isRunning } = await getLastCrawlStatus();
