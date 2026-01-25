@@ -1,10 +1,13 @@
 import { NextResponse } from 'next/server';
-import { getLastCrawlStatus, runServerlessCrawler } from '@/lib/serverless-crawler';
+import { runCrawler, getLastCrawlStatus } from '@/lib/crawlers';
 import { generateWeeklyReport } from '@/lib/weekly-report-service';
+import { loggers } from '@/lib/logger';
 
 // Vercel Cron이 호출할 수 있도록 설정
 export const maxDuration = 300; // 5분 타임아웃
 export const dynamic = 'force-dynamic';
+
+const log = loggers.cron;
 
 // GET: 마지막 크롤링 상태 조회
 export async function GET() {
@@ -12,7 +15,7 @@ export async function GET() {
     const status = await getLastCrawlStatus();
     return NextResponse.json(status);
   } catch (error) {
-    console.error('Failed to get crawl status:', error);
+    log.error({ error }, 'Failed to get crawl status');
     return NextResponse.json(
       { error: 'Failed to get crawl status' },
       { status: 500 }
@@ -45,13 +48,14 @@ export async function POST(request: Request) {
     }
 
     // 동기적으로 크롤링 실행 (Vercel Cron은 응답을 기다림)
-    const result = await runServerlessCrawler();
+    log.info('Starting crawler');
+    const result = await runCrawler();
 
     // 월요일(1)에는 주간 리포트도 생성
     const today = new Date();
     let reportResult = null;
     if (today.getDay() === 1) { // Monday
-      console.log('Monday detected - generating weekly report...');
+      log.info('Monday detected - generating weekly report');
       reportResult = await generateWeeklyReport();
     }
 
@@ -61,7 +65,7 @@ export async function POST(request: Request) {
       weeklyReport: reportResult,
     });
   } catch (error) {
-    console.error('Failed to run crawler:', error);
+    log.error({ error }, 'Failed to run crawler');
     return NextResponse.json(
       { error: 'Failed to run crawler', details: error instanceof Error ? error.message : 'Unknown error' },
       { status: 500 }
