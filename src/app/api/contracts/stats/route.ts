@@ -2,6 +2,7 @@ import { NextResponse } from 'next/server';
 import { getServerSession } from 'next-auth';
 import { authOptions } from '@/lib/auth';
 import prisma from '@/lib/prisma';
+import { withCache, cacheKeys, CACHE_TTL } from '@/lib/cache';
 
 // GET /api/contracts/stats - 계약 통계 조회
 export async function GET() {
@@ -15,8 +16,30 @@ export async function GET() {
       );
     }
 
-    // 전체 계약 데이터 가져오기
-    const contracts = await prisma.customerContract.findMany({
+    // 캐시에서 조회 또는 새로 계산
+    const stats = await withCache(
+      cacheKeys.contractStats(),
+      async () => computeContractStats(),
+      CACHE_TTL.MEDIUM // 5분 캐시
+    );
+
+    return NextResponse.json({
+      success: true,
+      data: stats,
+    });
+  } catch (error) {
+    console.error('계약 통계 조회 실패:', error);
+    const errorMessage = error instanceof Error ? error.message : 'Unknown error';
+    return NextResponse.json(
+      { success: false, error: '계약 통계를 불러오는데 실패했습니다.', details: errorMessage },
+      { status: 500 }
+    );
+  }
+}
+
+async function computeContractStats() {
+  // 전체 계약 데이터 가져오기
+  const contracts = await prisma.customerContract.findMany({
       include: {
         company: {
           select: {
@@ -104,24 +127,13 @@ export async function GET() {
         category: c.category,
       }));
 
-    return NextResponse.json({
-      success: true,
-      data: {
-        revenueTop20,
-        revenueByCustomerType: Object.values(revenueByCustomerType),
-        revenueByCategory: Object.values(revenueByCategory),
-        revenueComparison,
-        companyCountByType,
-        totalStats,
-        year2025Top10,
-      },
-    });
-  } catch (error) {
-    console.error('계약 통계 조회 실패:', error);
-    const errorMessage = error instanceof Error ? error.message : 'Unknown error';
-    return NextResponse.json(
-      { success: false, error: '계약 통계를 불러오는데 실패했습니다.', details: errorMessage },
-      { status: 500 }
-    );
-  }
+  return {
+    revenueTop20,
+    revenueByCustomerType: Object.values(revenueByCustomerType),
+    revenueByCategory: Object.values(revenueByCategory),
+    revenueComparison,
+    companyCountByType,
+    totalStats,
+    year2025Top10,
+  };
 }

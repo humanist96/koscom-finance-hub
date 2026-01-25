@@ -2,6 +2,7 @@ import { NextResponse } from 'next/server';
 import { getServerSession } from 'next-auth';
 import { authOptions } from '@/lib/auth';
 import prisma from '@/lib/prisma';
+import { withCache, cacheKeys, CACHE_TTL } from '@/lib/cache';
 
 // GET /api/contracts/services - 서비스별 통계 조회
 export async function GET() {
@@ -15,7 +16,28 @@ export async function GET() {
       );
     }
 
-    // 서비스 마스터 데이터 가져오기
+    // 캐시에서 조회 또는 새로 계산
+    const stats = await withCache(
+      cacheKeys.serviceStats(),
+      async () => computeServiceStats(),
+      CACHE_TTL.MEDIUM // 5분 캐시
+    );
+
+    return NextResponse.json({
+      success: true,
+      data: stats,
+    });
+  } catch (error) {
+    console.error('서비스 통계 조회 실패:', error);
+    return NextResponse.json(
+      { success: false, error: '서비스 통계를 불러오는데 실패했습니다.' },
+      { status: 500 }
+    );
+  }
+}
+
+async function computeServiceStats() {
+  // 서비스 마스터 데이터 가져오기
     const serviceMasters = await prisma.serviceMaster.findMany({
       where: { isActive: true },
     });
@@ -150,22 +172,12 @@ export async function GET() {
       totalServiceRevenue: serviceContracts.reduce((sum, sc) => sum + (Number(sc.amount) || 0), 0),
     };
 
-    return NextResponse.json({
-      success: true,
-      data: {
-        serviceRevenueTop15,
-        serviceSubscriberCount,
-        revenueByServiceCategory: Object.values(revenueByServiceCategory),
-        radarData,
-        serviceMasterList,
-        totalServiceStats,
-      },
-    });
-  } catch (error) {
-    console.error('서비스 통계 조회 실패:', error);
-    return NextResponse.json(
-      { success: false, error: '서비스 통계를 불러오는데 실패했습니다.' },
-      { status: 500 }
-    );
-  }
+  return {
+    serviceRevenueTop15,
+    serviceSubscriberCount,
+    revenueByServiceCategory: Object.values(revenueByServiceCategory),
+    radarData,
+    serviceMasterList,
+    totalServiceStats,
+  };
 }
