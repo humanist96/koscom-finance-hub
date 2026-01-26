@@ -75,17 +75,12 @@ function parseDate(value: unknown): Date | null {
 export async function POST(request: NextRequest) {
   try {
     const session = await getServerSession(authOptions);
+
+    // 로그인된 모든 사용자 허용
     if (!session?.user) {
       return NextResponse.json(
         { success: false, error: '로그인이 필요합니다.' },
         { status: 401 }
-      );
-    }
-
-    if (session.user.role !== 'ADMIN' && session.user.role !== 'SUPER_ADMIN') {
-      return NextResponse.json(
-        { success: false, error: '관리자 권한이 필요합니다.' },
-        { status: 403 }
       );
     }
 

@@ -63,6 +63,7 @@ export default function PersonnelPage() {
   const [selectedTypes, setSelectedTypes] = useState<string[]>([]);
   const [activeTab, setActiveTab] = useState<'news' | 'changes'>('news');
 
+  const isLoggedIn = !!session?.user;
   const isAdmin = session?.user?.role === 'ADMIN' || session?.user?.role === 'SUPER_ADMIN';
 
   const toggleType = (type: string) => {
@@ -121,7 +122,7 @@ export default function PersonnelPage() {
             증권사 임원 및 주요 인사 관련 뉴스와 인사 정보를 확인하세요
           </p>
         </div>
-        {isAdmin && (
+        {isLoggedIn && (
           <div className="flex gap-2">
             <Link href="/admin/personnel">
               <Button variant="outline" size="sm">

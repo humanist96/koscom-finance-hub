@@ -1,7 +1,7 @@
 'use client';
 
 import { useSession } from 'next-auth/react';
-import { useRouter } from 'next/navigation';
+import { useRouter, usePathname } from 'next/navigation';
 import Link from 'next/link';
 import { Building2, Users, Home, LogOut, Shield, FileSpreadsheet, UserCog } from 'lucide-react';
 import { signOut } from 'next-auth/react';
@@ -13,6 +13,11 @@ export default function AdminLayout({
 }) {
   const { data: session, status } = useSession();
   const router = useRouter();
+  const pathname = usePathname();
+
+  // 인사정보 관리 페이지는 모든 로그인 사용자 접근 허용
+  const isPersonnelPage = pathname?.startsWith('/admin/personnel');
+  const isAdmin = session?.user?.role === 'ADMIN' || session?.user?.role === 'SUPER_ADMIN';
 
   // 로딩 중
   if (status === 'loading') {
@@ -26,8 +31,14 @@ export default function AdminLayout({
     );
   }
 
-  // 비로그인 또는 권한 없음
-  if (!session || (session.user.role !== 'ADMIN' && session.user.role !== 'SUPER_ADMIN')) {
+  // 비로그인
+  if (!session) {
+    router.push('/login');
+    return null;
+  }
+
+  // 인사정보 관리 페이지가 아닌 경우 관리자 권한 필요
+  if (!isPersonnelPage && !isAdmin) {
     router.push('/dashboard');
     return null;
   }
@@ -50,24 +61,28 @@ export default function AdminLayout({
 
         <nav className="p-4">
           <ul className="space-y-2">
-            <li>
-              <Link
-                href="/admin"
-                className="flex items-center gap-3 rounded-lg px-3 py-2 text-gray-300 hover:bg-slate-800 hover:text-white"
-              >
-                <Home className="h-5 w-5" />
-                대시보드
-              </Link>
-            </li>
-            <li>
-              <Link
-                href="/admin/users"
-                className="flex items-center gap-3 rounded-lg px-3 py-2 text-gray-300 hover:bg-slate-800 hover:text-white"
-              >
-                <Users className="h-5 w-5" />
-                사용자 관리
-              </Link>
-            </li>
+            {isAdmin && (
+              <>
+                <li>
+                  <Link
+                    href="/admin"
+                    className="flex items-center gap-3 rounded-lg px-3 py-2 text-gray-300 hover:bg-slate-800 hover:text-white"
+                  >
+                    <Home className="h-5 w-5" />
+                    대시보드
+                  </Link>
+                </li>
+                <li>
+                  <Link
+                    href="/admin/users"
+                    className="flex items-center gap-3 rounded-lg px-3 py-2 text-gray-300 hover:bg-slate-800 hover:text-white"
+                  >
+                    <Users className="h-5 w-5" />
+                    사용자 관리
+                  </Link>
+                </li>
+              </>
+            )}
             <li>
               <Link
                 href="/admin/personnel"
@@ -77,15 +92,17 @@ export default function AdminLayout({
                 인사정보 관리
               </Link>
             </li>
-            <li>
-              <Link
-                href="/admin/contracts"
-                className="flex items-center gap-3 rounded-lg px-3 py-2 text-gray-300 hover:bg-slate-800 hover:text-white"
-              >
-                <FileSpreadsheet className="h-5 w-5" />
-                계약 정보 업로드
-              </Link>
-            </li>
+            {isAdmin && (
+              <li>
+                <Link
+                  href="/admin/contracts"
+                  className="flex items-center gap-3 rounded-lg px-3 py-2 text-gray-300 hover:bg-slate-800 hover:text-white"
+                >
+                  <FileSpreadsheet className="h-5 w-5" />
+                  계약 정보 업로드
+                </Link>
+              </li>
+            )}
           </ul>
         </nav>
 
