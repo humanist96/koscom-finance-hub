@@ -1,54 +1,37 @@
 'use client';
 
 import { useState } from 'react';
-import { Filter, X } from 'lucide-react';
+import { Filter } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetTrigger } from '@/components/ui/sheet';
 import { ScrollArea } from '@/components/ui/scroll-area';
-import { useCompanies } from '@/hooks/use-companies';
-import { useFilterStore } from '@/stores/filter-store';
-import { NEWS_CATEGORY_LABELS, type NewsCategory } from '@/types/news';
-import { DATE_FILTER_OPTIONS } from '@/constants';
+import {
+  useFilterUI,
+  DateRangeFilter,
+  CategoryFilter,
+  CompanyFilter,
+  CheckboxItem,
+} from '@/components/features/filters';
 
 export function MobileFilter() {
   const [open, setOpen] = useState(false);
-  const { data: companiesData } = useCompanies({ withStats: true });
   const {
+    filteredCompanies,
+    categories,
     selectedCompanyIds,
     selectedCategories,
     dateRange,
     showPersonnelOnly,
     showPowerbaseOnly,
+    activeFilterCount,
     toggleCompany,
     toggleCategory,
     setDateRange,
     setShowPersonnelOnly,
     setShowPowerbaseOnly,
     resetFilters,
-  } = useFilterStore();
-
-  const companies = companiesData?.data || [];
-  const categories: NewsCategory[] = [
-    'GENERAL',
-    'PERSONNEL',
-    'BUSINESS',
-    'PRODUCT',
-    'IR',
-    'EVENT',
-  ];
-
-  // Powerbase 고객사만 필터링
-  const filteredCompanies = showPowerbaseOnly
-    ? companies.filter(c => c.isPowerbaseClient)
-    : companies;
-
-  const activeFilterCount =
-    selectedCompanyIds.length +
-    selectedCategories.length +
-    (showPersonnelOnly ? 1 : 0) +
-    (showPowerbaseOnly ? 1 : 0) +
-    (dateRange !== '1week' ? 1 : 0);
+  } = useFilterUI();
 
   return (
     <div className="lg:hidden">
@@ -80,78 +63,53 @@ export function MobileFilter() {
               {/* 기간 */}
               <div>
                 <h4 className="mb-2 font-medium">기간</h4>
-                <div className="flex flex-wrap gap-2">
-                  {DATE_FILTER_OPTIONS.map(option => (
-                    <Badge
-                      key={option.value}
-                      variant={dateRange === option.value ? 'default' : 'outline'}
-                      className="cursor-pointer"
-                      onClick={() => setDateRange(option.value as typeof dateRange)}
-                    >
-                      {option.label}
-                    </Badge>
-                  ))}
-                </div>
+                <DateRangeFilter
+                  dateRange={dateRange}
+                  setDateRange={setDateRange}
+                  variant="badge"
+                />
               </div>
 
               {/* 인사 뉴스 */}
               <div>
-                <label className="flex items-center gap-2">
-                  <input
-                    type="checkbox"
-                    checked={showPersonnelOnly}
-                    onChange={e => setShowPersonnelOnly(e.target.checked)}
-                    className="h-4 w-4 rounded"
-                  />
-                  <span>인사 뉴스만 보기</span>
-                </label>
+                <CheckboxItem
+                  id="mobile-personnel-only"
+                  checked={showPersonnelOnly}
+                  onCheckedChange={setShowPersonnelOnly}
+                  label="인사 뉴스만 보기"
+                />
               </div>
 
               {/* Powerbase 고객사 */}
               <div>
-                <label className="flex items-center gap-2">
-                  <input
-                    type="checkbox"
-                    checked={showPowerbaseOnly}
-                    onChange={e => setShowPowerbaseOnly(e.target.checked)}
-                    className="h-4 w-4 rounded"
-                  />
-                  <span>Powerbase 고객사만</span>
-                </label>
+                <CheckboxItem
+                  id="mobile-powerbase-only"
+                  checked={showPowerbaseOnly}
+                  onCheckedChange={setShowPowerbaseOnly}
+                  label="Powerbase 고객사만"
+                />
               </div>
 
               {/* 카테고리 */}
               <div>
                 <h4 className="mb-2 font-medium">카테고리</h4>
-                <div className="flex flex-wrap gap-2">
-                  {categories.map(category => (
-                    <Badge
-                      key={category}
-                      variant={selectedCategories.includes(category) ? 'default' : 'outline'}
-                      className="cursor-pointer"
-                      onClick={() => toggleCategory(category)}
-                    >
-                      {NEWS_CATEGORY_LABELS[category]}
-                    </Badge>
-                  ))}
-                </div>
+                <CategoryFilter
+                  categories={categories}
+                  selectedCategories={selectedCategories}
+                  toggleCategory={toggleCategory}
+                  variant="badge"
+                />
               </div>
 
               {/* 증권사 */}
               <div>
                 <h4 className="mb-2 font-medium">증권사 ({filteredCompanies.length})</h4>
-                <div className="flex flex-wrap gap-2">
-                  {filteredCompanies.map(company => (
-                    <Badge
-                      key={company.id}
-                      variant={selectedCompanyIds.includes(company.id) ? 'default' : 'outline'}
-                      className="cursor-pointer"
-                      onClick={() => toggleCompany(company.id)}
-                    >
-                      {company.name}
-                    </Badge>
-                  ))}
-                </div>
+                <CompanyFilter
+                  companies={filteredCompanies}
+                  selectedCompanyIds={selectedCompanyIds}
+                  toggleCompany={toggleCompany}
+                  variant="badge"
+                />
               </div>
             </div>
           </ScrollArea>

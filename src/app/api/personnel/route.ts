@@ -1,39 +1,56 @@
 import { NextRequest, NextResponse } from 'next/server';
 import prisma from '@/lib/prisma';
 import { subDays, startOfDay } from 'date-fns';
+import { parsePersonnelQuery, PersonnelDateRange } from '@/lib/validators/personnel';
+import { logger } from '@/lib/logger';
 
 // GET /api/personnel - 인사 뉴스 목록 조회
 export async function GET(request: NextRequest) {
+  const requestId = crypto.randomUUID();
+
   try {
     const searchParams = request.nextUrl.searchParams;
 
-    // 페이지네이션
-    const page = Math.max(1, parseInt(searchParams.get('page') || '1'));
-    const limit = Math.min(100, Math.max(1, parseInt(searchParams.get('limit') || '20')));
+    // Validate query parameters
+    const validation = parsePersonnelQuery(searchParams);
+
+    if (!validation.success) {
+      return NextResponse.json(
+        {
+          success: false,
+          error: validation.error,
+          code: 'VALIDATION_ERROR',
+          details: validation.details,
+        },
+        { status: 400 }
+      );
+    }
+
+    const { page, limit, companyIds, keyword, dateRange, startDate } = validation.data!;
     const skip = (page - 1) * limit;
 
-    // 필터 파라미터
-    const companyIds = searchParams.get('companyIds')?.split(',').filter(Boolean) || [];
-    const keyword = searchParams.get('keyword');
-    const dateRange = searchParams.get('dateRange') || searchParams.get('startDate') || '1month';
+    // Use startDate as dateRange if provided
+    const effectiveDateRange: PersonnelDateRange = startDate || dateRange;
+
+    logger.info({ requestId, page, limit, companyIds, keyword, dateRange: effectiveDateRange }, 'Personnel request');
 
     // 날짜 범위 계산
-    let startDate: Date | undefined;
+    let filterStartDate: Date | undefined;
     const now = new Date();
 
-    switch (dateRange) {
+    switch (effectiveDateRange) {
       case '1week':
-        startDate = startOfDay(subDays(now, 7));
+        filterStartDate = startOfDay(subDays(now, 7));
         break;
       case '1month':
-        startDate = startOfDay(subDays(now, 30));
+        filterStartDate = startOfDay(subDays(now, 30));
         break;
       case '3months':
-        startDate = startOfDay(subDays(now, 90));
+        filterStartDate = startOfDay(subDays(now, 90));
         break;
       case 'all':
       default:
-        startDate = undefined;
+        filterStartDate = undefined;
     }
 
     // where 조건 구성 - News 테이블에서 인사 뉴스만 조회
@@ -41,12 +58,12 @@ export async function GET(request: NextRequest) {
       isPersonnel: true,
     };
 
-    if (companyIds.length > 0) {
+    if (companyIds && companyIds.length > 0) {
       where.companyId = { in: companyIds };
     }
 
-    if (startDate) {
-      where.publishedAt = { gte: startDate };
+    if (filterStartDate) {
+      where.publishedAt = { gte: filterStartDate };
     }
 
     if (keyword) {
@@ -80,6 +97,8 @@ export async function GET(request: NextRequest) {
 
     const totalPages = Math.ceil(total / limit);
 
+    logger.info({ requestId, total, totalPages }, 'Personnel query completed');
+
     return NextResponse.json({
       success: true,
       data: {
@@ -94,9 +113,9 @@ export async function GET(request: NextRequest) {
       },
     });
   } catch (error) {
-    console.error('인사 정보 조회 실패:', error);
+    logger.error({ requestId, error }, 'Personnel query failed');
     return NextResponse.json(
-      { success: false, error: '인사 정보를 불러오는데 실패했습니다.' },
+      { success: false, error: '인사 정보를 불러오는데 실패했습니다.', code: 'INTERNAL_ERROR' },
       { status: 500 }
     );
   }

@@ -4,38 +4,44 @@ import { useState } from 'react';
 import { useRouter } from 'next/navigation';
 import Link from 'next/link';
 import { signIn } from 'next-auth/react';
+import { useForm } from 'react-hook-form';
+import { zodResolver } from '@hookform/resolvers/zod';
 import { Building2, ArrowRight, Eye, EyeOff } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
+import {
+  Form,
+  FormControl,
+  FormField,
+  FormItem,
+  FormLabel,
+  FormMessage,
+} from '@/components/ui/form';
+import { loginFormSchema, type LoginFormValues } from '@/lib/validators/auth-forms';
 
 export default function LoginPage() {
   const router = useRouter();
-  const [email, setEmail] = useState('');
-  const [password, setPassword] = useState('');
   const [showPassword, setShowPassword] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
-  const [error, setError] = useState('');
+  const [serverError, setServerError] = useState('');
 
-  const handleSubmit = async (e: React.FormEvent) => {
-    e.preventDefault();
-    setError('');
+  const form = useForm<LoginFormValues>({
+    resolver: zodResolver(loginFormSchema),
+    defaultValues: {
+      email: '',
+      password: '',
+    },
+    mode: 'onBlur',
+  });
 
-    if (!email.trim() || !email.includes('@')) {
-      setError('올바른 이메일을 입력해주세요.');
-      return;
-    }
-
-    if (!password) {
-      setError('비밀번호를 입력해주세요.');
-      return;
-    }
-
+  const onSubmit = async (data: LoginFormValues) => {
+    setServerError('');
     setIsLoading(true);
 
     try {
       const result = await signIn('credentials', {
-        email: email.trim(),
-        password,
+        email: data.email.trim(),
+        password: data.password,
         redirect: false,
       });
 
@@ -46,14 +52,14 @@ export default function LoginPage() {
           return;
         }
         if (result.error.startsWith('REJECTED:')) {
-          setError('가입이 거절되었습니다. 관리자에게 문의하세요.');
+          setServerError('가입이 거절되었습니다. 관리자에게 문의하세요.');
           return;
         }
         if (result.error.startsWith('SUSPENDED:')) {
-          setError('계정이 정지되었습니다. 관리자에게 문의하세요.');
+          setServerError('계정이 정지되었습니다. 관리자에게 문의하세요.');
           return;
         }
-        setError(result.error);
+        setServerError(result.error);
         return;
       }
 
@@ -61,7 +67,7 @@ export default function LoginPage() {
       router.push('/dashboard');
       router.refresh();
     } catch (err) {
-      setError(err instanceof Error ? err.message : '오류가 발생했습니다.');
+      setServerError(err instanceof Error ? err.message : '오류가 발생했습니다.');
     } finally {
       setIsLoading(false);
     }
@@ -93,57 +99,71 @@ export default function LoginPage() {
             이메일과 비밀번호를 입력해주세요
           </p>
 
-          <form onSubmit={handleSubmit} className="space-y-4">
-            <div>
-              <label htmlFor="email" className="mb-1.5 block text-sm font-medium text-gray-300">
-                이메일
-              </label>
-              <Input
-                id="email"
-                type="email"
-                placeholder="hong@koscom.co.kr"
-                value={email}
-                onChange={(e) => setEmail(e.target.value)}
-                className="border-white/10 bg-white/5 text-white placeholder:text-gray-500 focus:border-blue-500"
+          <Form {...form}>
+            <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-4">
+              <FormField
+                control={form.control}
+                name="email"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel className="text-gray-300">이메일</FormLabel>
+                    <FormControl>
+                      <Input
+                        type="email"
+                        placeholder="hong@koscom.co.kr"
+                        className="border-white/10 bg-white/5 text-white placeholder:text-gray-500 focus:border-blue-500"
+                        {...field}
+                      />
+                    </FormControl>
+                    <FormMessage className="text-red-400" />
+                  </FormItem>
+                )}
               />
-            </div>
 
-            <div>
-              <label htmlFor="password" className="mb-1.5 block text-sm font-medium text-gray-300">
-                비밀번호
-              </label>
-              <div className="relative">
-                <Input
-                  id="password"
-                  type={showPassword ? 'text' : 'password'}
-                  placeholder="비밀번호를 입력하세요"
-                  value={password}
-                  onChange={(e) => setPassword(e.target.value)}
-                  className="border-white/10 bg-white/5 pr-10 text-white placeholder:text-gray-500 focus:border-blue-500"
-                />
-                <button
-                  type="button"
-                  onClick={() => setShowPassword(!showPassword)}
-                  className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 hover:text-white"
-                >
-                  {showPassword ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
-                </button>
-              </div>
-            </div>
+              <FormField
+                control={form.control}
+                name="password"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel className="text-gray-300">비밀번호</FormLabel>
+                    <FormControl>
+                      <div className="relative">
+                        <Input
+                          type={showPassword ? 'text' : 'password'}
+                          placeholder="비밀번호를 입력하세요"
+                          className="border-white/10 bg-white/5 pr-10 text-white placeholder:text-gray-500 focus:border-blue-500"
+                          {...field}
+                        />
+                        <button
+                          type="button"
+                          onClick={() => setShowPassword(!showPassword)}
+                          className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 hover:text-white"
+                        >
+                          {showPassword ? (
+                            <EyeOff className="h-4 w-4" />
+                          ) : (
+                            <Eye className="h-4 w-4" />
+                          )}
+                        </button>
+                      </div>
+                    </FormControl>
+                    <FormMessage className="text-red-400" />
+                  </FormItem>
+                )}
+              />
 
-            {error && (
-              <p className="text-sm text-red-400">{error}</p>
-            )}
+              {serverError && <p className="text-sm text-red-400">{serverError}</p>}
 
-            <Button
-              type="submit"
-              disabled={isLoading}
-              className="w-full bg-gradient-to-r from-blue-500 to-cyan-500 py-6 text-lg font-semibold text-white shadow-lg shadow-blue-500/25 hover:from-blue-600 hover:to-cyan-600"
-            >
-              {isLoading ? '로그인 중...' : '로그인'}
-              <ArrowRight className="ml-2 h-5 w-5" />
-            </Button>
-          </form>
+              <Button
+                type="submit"
+                disabled={isLoading}
+                className="w-full bg-gradient-to-r from-blue-500 to-cyan-500 py-6 text-lg font-semibold text-white shadow-lg shadow-blue-500/25 hover:from-blue-600 hover:to-cyan-600"
+              >
+                {isLoading ? '로그인 중...' : '로그인'}
+                <ArrowRight className="ml-2 h-5 w-5" />
+              </Button>
+            </form>
+          </Form>
 
           <div className="mt-6 text-center">
             <p className="text-sm text-gray-400">

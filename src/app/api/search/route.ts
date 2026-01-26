@@ -1,108 +1,64 @@
 import { NextRequest, NextResponse } from 'next/server';
 import prisma from '@/lib/prisma';
+import { parseSearchQuery } from '@/lib/validators/search';
+import { logger } from '@/lib/logger';
+import { unifiedSearch } from '@/lib/search';
 
-// GET /api/search - 통합 검색
+// GET /api/search - 통합 검색 (Full-text search with fallback)
 export async function GET(request: NextRequest) {
+  const requestId = crypto.randomUUID();
+
   try {
     const searchParams = request.nextUrl.searchParams;
-    const query = searchParams.get('q') || '';
-    const type = searchParams.get('type') || 'all'; // all, news, personnel
-    const limit = Math.min(50, Math.max(1, parseInt(searchParams.get('limit') || '10')));
 
-    if (!query || query.trim().length < 2) {
+    // Validate query parameters
+    const validation = parseSearchQuery(searchParams);
+
+    if (!validation.success) {
       return NextResponse.json(
-        { success: false, error: '검색어는 2글자 이상 입력해주세요.' },
+        {
+          success: false,
+          error: validation.error,
+          code: 'VALIDATION_ERROR',
+          details: validation.details,
+        },
         { status: 400 }
       );
     }
 
-    const results: {
-      news?: unknown[];
-      personnel?: unknown[];
-      companies?: unknown[];
-    } = {};
+    const { q: query, type, limit } = validation.data!;
 
-    // 뉴스 검색
-    if (type === 'all' || type === 'news') {
-      results.news = await prisma.news.findMany({
-        where: {
-          OR: [
-            { title: { contains: query } },
-            { content: { contains: query } },
-            { summary: { contains: query } },
-          ],
-        },
-        take: limit,
-        orderBy: { publishedAt: 'desc' },
-        select: {
-          id: true,
-          title: true,
-          summary: true,
-          category: true,
-          isPersonnel: true,
-          publishedAt: true,
-          sourceUrl: true,
-          company: {
-            select: {
-              id: true,
-              name: true,
-            },
-          },
-        },
-      });
-    }
+    logger.info({ requestId, query, type, limit }, 'Search request');
 
-    // 인사 정보 검색
-    if (type === 'all' || type === 'personnel') {
-      results.personnel = await prisma.personnelChange.findMany({
-        where: {
-          OR: [
-            { personName: { contains: query } },
-            { position: { contains: query } },
-            { department: { contains: query } },
-          ],
-        },
-        take: limit,
-        orderBy: { announcedAt: 'desc' },
-        include: {
-          company: {
-            select: {
-              id: true,
-              name: true,
-            },
-          },
-        },
-      });
-    }
+    // Perform unified search (full-text with fallback)
+    const searchResults = await unifiedSearch(prisma, query, type, limit);
 
-    // 증권사 검색 (항상 포함)
-    if (type === 'all') {
-      results.companies = await prisma.securitiesCompany.findMany({
-        where: {
-          OR: [
-            { name: { contains: query } },
-            { code: { contains: query } },
-          ],
-        },
-        take: 5,
-        select: {
-          id: true,
-          name: true,
-          code: true,
-          logoUrl: true,
-        },
-      });
-    }
+    logger.info(
+      {
+        requestId,
+        newsCount: searchResults.news?.length ?? 0,
+        personnelCount: searchResults.personnel?.length ?? 0,
+        companiesCount: searchResults.companies?.length ?? 0,
+        searchMethod: searchResults._searchMethod,
+      },
+      'Search completed'
+    );
+
+    // Remove internal _searchMethod from response
+    const { _searchMethod, ...results } = searchResults;
 
     return NextResponse.json({
       success: true,
       data: results,
       query,
+      meta: {
+        searchMethod: _searchMethod,
+      },
     });
   } catch (error) {
-    console.error('검색 실패:', error);
+    logger.error({ requestId, error }, 'Search failed');
     return NextResponse.json(
-      { success: false, error: '검색에 실패했습니다.' },
+      { success: false, error: '검색에 실패했습니다.', code: 'INTERNAL_ERROR' },
       { status: 500 }
     );
   }

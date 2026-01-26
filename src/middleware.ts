@@ -1,38 +1,105 @@
 import { withAuth } from 'next-auth/middleware';
-import { NextResponse } from 'next/server';
+import { NextResponse, NextRequest } from 'next/server';
+import { getToken } from 'next-auth/jwt';
+import { checkRateLimit, rateLimitResponse, addRateLimitHeaders } from '@/lib/rate-limit';
 
+// Security headers to add to all responses
+const securityHeaders = {
+  'X-Frame-Options': 'DENY',
+  'X-Content-Type-Options': 'nosniff',
+  'Referrer-Policy': 'strict-origin-when-cross-origin',
+  'X-XSS-Protection': '1; mode=block',
+  'Permissions-Policy': 'camera=(), microphone=(), geolocation=()',
+};
+
+// Add security headers to response
+function addSecurityHeaders(response: NextResponse): NextResponse {
+  Object.entries(securityHeaders).forEach(([key, value]) => {
+    response.headers.set(key, value);
+  });
+  return response;
+}
+
+// Check if path should have rate limiting applied
+function shouldApplyRateLimit(pathname: string): boolean {
+  // Apply rate limiting to all API routes
+  return pathname.startsWith('/api/');
+}
+
+// Main middleware function that handles both rate limiting and auth
+async function middleware(request: NextRequest) {
+  const pathname = request.nextUrl.pathname;
+
+  // Apply rate limiting for API routes
+  if (shouldApplyRateLimit(pathname)) {
+    // Get user ID from token if available (for authenticated rate limiting)
+    const token = await getToken({ req: request });
+    const userId = token?.sub;
+
+    const rateLimitResult = await checkRateLimit(request, userId);
+
+    if (!rateLimitResult.success) {
+      const response = rateLimitResponse(rateLimitResult.reset!);
+      return addSecurityHeaders(response);
+    }
+
+    // Continue with the request, we'll add rate limit headers later
+    // Store rate limit info for later use
+    const response = NextResponse.next();
+    addRateLimitHeaders(response, rateLimitResult.remaining, rateLimitResult.reset);
+    return addSecurityHeaders(response);
+  }
+
+  // For non-API routes, just add security headers
+  const response = NextResponse.next();
+  return addSecurityHeaders(response);
+}
+
+// Export the combined middleware with auth
 export default withAuth(
-  function middleware(req) {
+  async function authMiddleware(req) {
     const token = req.nextauth.token;
     const path = req.nextUrl.pathname;
 
-    // 관리자 페이지 접근 제어
-    if (path.startsWith('/admin')) {
-      if (token?.role !== 'ADMIN' && token?.role !== 'SUPER_ADMIN') {
-        return NextResponse.redirect(new URL('/dashboard', req.url));
+    // Rate limiting for API routes (with user context)
+    if (path.startsWith('/api/')) {
+      const rateLimitResult = await checkRateLimit(req, token?.sub);
+
+      if (!rateLimitResult.success) {
+        const response = rateLimitResponse(rateLimitResult.reset!);
+        return addSecurityHeaders(response);
       }
     }
 
-    return NextResponse.next();
+    // Admin page access control
+    if (path.startsWith('/admin')) {
+      if (token?.role !== 'ADMIN' && token?.role !== 'SUPER_ADMIN') {
+        const response = NextResponse.redirect(new URL('/dashboard', req.url));
+        return addSecurityHeaders(response);
+      }
+    }
+
+    const response = NextResponse.next();
+    return addSecurityHeaders(response);
   },
   {
     callbacks: {
       authorized: ({ token, req }) => {
         const path = req.nextUrl.pathname;
 
-        // 공개 페이지
+        // Public pages
         const publicPaths = ['/', '/login', '/register', '/pending', '/api/auth'];
         if (publicPaths.some(p => path === p || path.startsWith(p))) {
           return true;
         }
 
-        // API 라우트 중 공개 API
+        // Public APIs (still rate limited)
         const publicApis = ['/api/news', '/api/companies', '/api/search', '/api/personnel'];
         if (publicApis.some(p => path.startsWith(p))) {
           return true;
         }
 
-        // 인증 필요 페이지
+        // Authenticated routes require token
         return !!token;
       },
     },
@@ -41,14 +108,7 @@ export default withAuth(
 
 export const config = {
   matcher: [
-    '/dashboard/:path*',
-    '/admin/:path*',
-    '/api/alerts',
-    '/api/alerts/:path*',
-    '/api/reports',
-    '/api/reports/:path*',
-    '/api/contracts',
-    '/api/contracts/:path*',
-    '/api/admin/:path*',
+    // Match all paths for security headers
+    '/((?!_next/static|_next/image|favicon.ico).*)',
   ],
 };

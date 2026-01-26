@@ -1,30 +1,64 @@
 import { NextRequest, NextResponse } from 'next/server';
 import prisma from '@/lib/prisma';
-import { subDays, startOfDay, endOfDay } from 'date-fns';
+import { subDays, startOfDay } from 'date-fns';
+import { parseNewsListQuery, NewsDateRange } from '@/lib/validators/news';
+import { logger } from '@/lib/logger';
 
 // GET /api/news - 뉴스 목록 조회
 export async function GET(request: NextRequest) {
+  const requestId = crypto.randomUUID();
+
   try {
     const searchParams = request.nextUrl.searchParams;
 
-    // 페이지네이션
-    const page = Math.max(1, parseInt(searchParams.get('page') || '1'));
-    const limit = Math.min(100, Math.max(1, parseInt(searchParams.get('limit') || '20')));
+    // Validate query parameters
+    const validation = parseNewsListQuery(searchParams);
+
+    if (!validation.success) {
+      return NextResponse.json(
+        {
+          success: false,
+          error: validation.error,
+          code: 'VALIDATION_ERROR',
+          details: validation.details,
+        },
+        { status: 400 }
+      );
+    }
+
+    const {
+      page,
+      limit,
+      companyIds,
+      categories,
+      isPersonnel,
+      isPowerbaseOnly,
+      keyword,
+      dateRange,
+    } = validation.data!;
+
     const skip = (page - 1) * limit;
 
-    // 필터 파라미터
-    const companyIds = searchParams.get('companyIds')?.split(',').filter(Boolean) || [];
-    const categories = searchParams.get('categories')?.split(',').filter(Boolean) || [];
-    const isPersonnel = searchParams.get('isPersonnel');
-    const isPowerbaseOnly = searchParams.get('isPowerbaseOnly') === 'true';
-    const keyword = searchParams.get('keyword');
-    const dateRange = searchParams.get('dateRange') || '1week';
+    logger.info(
+      {
+        requestId,
+        page,
+        limit,
+        companyIds,
+        categories,
+        isPersonnel,
+        isPowerbaseOnly,
+        keyword,
+        dateRange,
+      },
+      'News list request'
+    );
 
     // 날짜 범위 계산
     let startDate: Date | undefined;
     const now = new Date();
 
-    switch (dateRange) {
+    switch (dateRange as NewsDateRange) {
       case 'today':
         startDate = startOfDay(now);
         break;
@@ -50,16 +84,16 @@ export async function GET(request: NextRequest) {
       where.company = { isPowerbaseClient: true };
     }
 
-    if (companyIds.length > 0) {
+    if (companyIds && companyIds.length > 0) {
       where.companyId = { in: companyIds };
     }
 
-    if (categories.length > 0) {
+    if (categories && categories.length > 0) {
       where.category = { in: categories };
     }
 
-    if (isPersonnel !== null && isPersonnel !== undefined) {
-      where.isPersonnel = isPersonnel === 'true';
+    if (isPersonnel !== undefined) {
+      where.isPersonnel = isPersonnel;
     }
 
     if (startDate) {
@@ -68,9 +102,9 @@ export async function GET(request: NextRequest) {
 
     if (keyword) {
       where.OR = [
-        { title: { contains: keyword } },
-        { content: { contains: keyword } },
-        { summary: { contains: keyword } },
+        { title: { contains: keyword, mode: 'insensitive' } },
+        { content: { contains: keyword, mode: 'insensitive' } },
+        { summary: { contains: keyword, mode: 'insensitive' } },
       ];
     }
 
@@ -105,6 +139,8 @@ export async function GET(request: NextRequest) {
 
     const totalPages = Math.ceil(total / limit);
 
+    logger.info({ requestId, total, totalPages }, 'News list query completed');
+
     return NextResponse.json({
       success: true,
       data: {
@@ -119,9 +155,9 @@ export async function GET(request: NextRequest) {
       },
     });
   } catch (error) {
-    console.error('뉴스 목록 조회 실패:', error);
+    logger.error({ requestId, error }, 'News list query failed');
     return NextResponse.json(
-      { success: false, error: '뉴스 목록을 불러오는데 실패했습니다.' },
+      { success: false, error: '뉴스 목록을 불러오는데 실패했습니다.', code: 'INTERNAL_ERROR' },
       { status: 500 }
     );
   }

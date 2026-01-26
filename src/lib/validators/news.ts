@@ -93,3 +93,102 @@ export const keywordListSchema = z
   .max(20, '키워드는 최대 20개까지 등록 가능합니다');
 
 export type KeywordListInput = z.infer<typeof keywordListSchema>;
+
+/**
+ * Date range enum for news filtering
+ */
+export const newsDateRange = z.enum(['today', '3days', '1week', '1month', 'all']);
+
+export type NewsDateRange = z.infer<typeof newsDateRange>;
+
+/**
+ * News list query schema (for /api/news endpoint)
+ */
+export const newsListQuerySchema = z.object({
+  page: z.coerce
+    .number()
+    .int('페이지는 정수여야 합니다')
+    .min(1, '페이지는 1 이상이어야 합니다')
+    .optional()
+    .default(1),
+  limit: z.coerce
+    .number()
+    .int('제한값은 정수여야 합니다')
+    .min(1, '최소 1개 이상 조회해야 합니다')
+    .max(100, '최대 100개까지 조회 가능합니다')
+    .optional()
+    .default(20),
+  companyIds: z
+    .string()
+    .transform((val) => val.split(',').filter(Boolean))
+    .optional(),
+  categories: z
+    .string()
+    .transform((val) => val.split(',').filter(Boolean))
+    .pipe(z.array(newsCategory))
+    .optional(),
+  isPersonnel: z
+    .string()
+    .transform((val) => val === 'true')
+    .optional(),
+  isPowerbaseOnly: z
+    .string()
+    .transform((val) => val === 'true')
+    .optional()
+    .default(false),
+  keyword: z
+    .string()
+    .max(200, '검색어는 200자를 초과할 수 없습니다')
+    .transform((val) => val.trim())
+    .optional(),
+  dateRange: newsDateRange.optional().default('1week'),
+});
+
+export type NewsListQueryInput = z.infer<typeof newsListQuerySchema>;
+
+/**
+ * Parse and validate news list query from URL search params
+ */
+export function parseNewsListQuery(searchParams: URLSearchParams): {
+  success: boolean;
+  data?: NewsListQueryInput;
+  error?: string;
+  details?: Record<string, string>;
+} {
+  const rawData: Record<string, string | undefined> = {
+    page: searchParams.get('page') ?? undefined,
+    limit: searchParams.get('limit') ?? undefined,
+    companyIds: searchParams.get('companyIds') ?? undefined,
+    categories: searchParams.get('categories') ?? undefined,
+    isPersonnel: searchParams.get('isPersonnel') ?? undefined,
+    isPowerbaseOnly: searchParams.get('isPowerbaseOnly') ?? undefined,
+    keyword: searchParams.get('keyword') ?? undefined,
+    dateRange: searchParams.get('dateRange') ?? undefined,
+  };
+
+  // Remove undefined values
+  const filteredData = Object.fromEntries(
+    Object.entries(rawData).filter(([, v]) => v !== undefined)
+  );
+
+  const result = newsListQuerySchema.safeParse(filteredData);
+
+  if (!result.success) {
+    const fieldErrors: Record<string, string> = {};
+    result.error.issues.forEach((err: z.ZodIssue) => {
+      const field = err.path.join('.');
+      fieldErrors[field] = err.message;
+    });
+
+    return {
+      success: false,
+      error: '입력값이 올바르지 않습니다',
+      details: fieldErrors,
+    };
+  }
+
+  return {
+    success: true,
+    data: result.data,
+  };
+}
