@@ -1,10 +1,11 @@
 'use client';
 
 import { useState } from 'react';
+import { useSession } from 'next-auth/react';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Skeleton } from '@/components/ui/skeleton';
-import { Users, Newspaper, UserCheck, RefreshCw, AlertCircle, ExternalLink, Building2, Calendar, ArrowRight } from 'lucide-react';
+import { Users, Newspaper, UserCheck, RefreshCw, AlertCircle, ExternalLink, Building2, Calendar, ArrowRight, Plus, Settings } from 'lucide-react';
 import { usePersonnel, usePersonnelChanges } from '@/hooks/use-personnel';
 import { formatDistanceToNow, format } from 'date-fns';
 import { ko } from 'date-fns/locale';
@@ -57,9 +58,12 @@ interface PersonnelChangeItem {
 }
 
 export default function PersonnelPage() {
+  const { data: session } = useSession();
   const [dateRange, setDateRange] = useState('1month');
   const [selectedTypes, setSelectedTypes] = useState<string[]>([]);
   const [activeTab, setActiveTab] = useState<'news' | 'changes'>('news');
+
+  const isAdmin = session?.user?.role === 'ADMIN' || session?.user?.role === 'SUPER_ADMIN';
 
   const toggleType = (type: string) => {
     setSelectedTypes(prev =>
@@ -107,14 +111,32 @@ export default function PersonnelPage() {
   return (
     <div className="container mx-auto px-4 py-6">
       {/* Page Header */}
-      <div className="mb-6">
-        <h1 className="flex items-center gap-2 text-2xl font-bold">
-          <Users className="h-6 w-6 text-purple-600" />
-          인사 동향
-        </h1>
-        <p className="mt-1 text-sm text-gray-500">
-          증권사 임원 및 주요 인사 관련 뉴스와 인사 정보를 확인하세요
-        </p>
+      <div className="mb-6 flex items-start justify-between">
+        <div>
+          <h1 className="flex items-center gap-2 text-2xl font-bold">
+            <Users className="h-6 w-6 text-purple-600" />
+            인사 동향
+          </h1>
+          <p className="mt-1 text-sm text-gray-500">
+            증권사 임원 및 주요 인사 관련 뉴스와 인사 정보를 확인하세요
+          </p>
+        </div>
+        {isAdmin && (
+          <div className="flex gap-2">
+            <Link href="/admin/personnel">
+              <Button variant="outline" size="sm">
+                <Settings className="mr-2 h-4 w-4" />
+                인사정보 관리
+              </Button>
+            </Link>
+            <Link href="/admin/personnel">
+              <Button size="sm">
+                <Plus className="mr-2 h-4 w-4" />
+                인사정보 추가
+              </Button>
+            </Link>
+          </div>
+        )}
       </div>
 
       {/* Tab Navigation */}
