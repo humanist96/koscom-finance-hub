@@ -77,12 +77,17 @@ model PersonnelChange {
   effectiveDate DateTime? // 발령일
   announcedAt DateTime // 발표일
 
+  // 데이터 소스 구분
+  sourceType  String   @default("CRAWLED") // CRAWLED, MANUAL, EXCEL_IMPORT
+  createdById String?  // 수기 입력한 사용자 ID
+
   createdAt   DateTime @default(now())
   updatedAt   DateTime @updatedAt
 
   @@index([companyId])
   @@index([announcedAt])
   @@index([changeType])
+  @@index([sourceType])
   @@map("personnel_changes")
 }
 

@@ -3,7 +3,7 @@
 import { useSession } from 'next-auth/react';
 import { useRouter } from 'next/navigation';
 import Link from 'next/link';
-import { Building2, Users, Home, LogOut, Shield, FileSpreadsheet } from 'lucide-react';
+import { Building2, Users, Home, LogOut, Shield, FileSpreadsheet, UserCog } from 'lucide-react';
 import { signOut } from 'next-auth/react';
 
 export default function AdminLayout({
@@ -66,6 +66,15 @@ export default function AdminLayout({
               >
                 <Users className="h-5 w-5" />
                 사용자 관리
+              </Link>
+            </li>
+            <li>
+              <Link
+                href="/admin/personnel"
+                className="flex items-center gap-3 rounded-lg px-3 py-2 text-gray-300 hover:bg-slate-800 hover:text-white"
+              >
+                <UserCog className="h-5 w-5" />
+                인사정보 관리
               </Link>
             </li>
             <li>

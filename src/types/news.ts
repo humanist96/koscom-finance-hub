@@ -76,6 +76,21 @@ export const PERSONNEL_CHANGE_LABELS: Record<PersonnelChangeType, string> = {
   RETIREMENT: '정년퇴직',
 };
 
+// 인사정보 소스 타입
+export type PersonnelSourceType = 'CRAWLED' | 'MANUAL' | 'EXCEL_IMPORT';
+
+export const PERSONNEL_SOURCE_LABELS: Record<PersonnelSourceType, string> = {
+  CRAWLED: '크롤링',
+  MANUAL: '수기 입력',
+  EXCEL_IMPORT: '엑셀 업로드',
+};
+
+export const PERSONNEL_SOURCE_COLORS: Record<PersonnelSourceType, string> = {
+  CRAWLED: 'bg-purple-100 text-purple-800',
+  MANUAL: 'bg-blue-100 text-blue-800',
+  EXCEL_IMPORT: 'bg-orange-100 text-orange-800',
+};
+
 export interface PersonnelChange {
   id: string;
   companyId: string;
@@ -87,12 +102,53 @@ export interface PersonnelChange {
   sourceUrl?: string | null;
   effectiveDate?: Date | null;
   announcedAt: Date;
+  sourceType: PersonnelSourceType;
+  createdById?: string | null;
   createdAt: Date;
   updatedAt: Date;
 }
 
 export interface PersonnelChangeWithCompany extends PersonnelChange {
   company: SecuritiesCompany;
+}
+
+// Admin용 인사정보 (생성자 정보 포함)
+export interface AdminPersonnelChange extends PersonnelChangeWithCompany {
+  creator?: {
+    id: string;
+    name: string | null;
+    email: string;
+  } | null;
+}
+
+// 인사정보 생성 DTO
+export interface CreatePersonnelDto {
+  companyId: string;
+  personName: string;
+  position?: string;
+  department?: string;
+  changeType: PersonnelChangeType;
+  previousPosition?: string;
+  sourceUrl?: string;
+  effectiveDate?: string;
+  announcedAt: string;
+}
+
+// 인사정보 수정 DTO
+export interface UpdatePersonnelDto extends Partial<CreatePersonnelDto> {}
+
+// Admin 인사정보 조회 파라미터
+export interface GetAdminPersonnelParams {
+  page?: number;
+  limit?: number;
+  companyIds?: string[];
+  changeTypes?: string[];
+  sourceTypes?: string[];
+  keyword?: string;
+  startDate?: string;
+  endDate?: string;
+  sortBy?: string;
+  sortOrder?: 'asc' | 'desc';
 }
 
 // 필터 옵션
